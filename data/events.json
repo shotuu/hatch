@@ -1,0 +1,122 @@
+[
+  {
+    "id": "evt_001",
+    "title": "Free Gallery Opening — Arts District",
+    "datetime": "2026-04-25T15:00:00-07:00",
+    "duration_minutes": 120,
+    "location": "Hauser & Wirth, Arts District, Los Angeles",
+    "price": 0,
+    "url": "https://example.com/gallery-opening",
+    "tags": ["art", "gallery", "free", "indoor"]
+  },
+  {
+    "id": "evt_002",
+    "title": "Ramen Festival Little Tokyo",
+    "datetime": "2026-04-26T15:00:00-07:00",
+    "duration_minutes": 180,
+    "location": "Little Tokyo, Los Angeles",
+    "price": 15,
+    "url": "https://example.com/ramen-fest",
+    "tags": ["ramen", "food", "festival", "outdoor"]
+  },
+  {
+    "id": "evt_003",
+    "title": "Lakers vs. Warriors",
+    "datetime": "2026-04-29T19:30:00-07:00",
+    "duration_minutes": 180,
+    "location": "Crypto.com Arena, Downtown LA",
+    "price": 85,
+    "url": "https://example.com/lakers-warriors",
+    "tags": ["basketball", "sports", "ticketed"]
+  },
+  {
+    "id": "evt_004",
+    "title": "Sunset Hike — Runyon Canyon",
+    "datetime": "2026-04-26T17:30:00-07:00",
+    "duration_minutes": 90,
+    "location": "Runyon Canyon Park, Hollywood",
+    "price": 0,
+    "url": "https://example.com/runyon-hike",
+    "tags": ["hikes", "outdoor", "free", "sunset"]
+  },
+  {
+    "id": "evt_005",
+    "title": "Stand-Up Night at The Comedy Store",
+    "datetime": "2026-04-25T21:00:00-07:00",
+    "duration_minutes": 120,
+    "location": "The Comedy Store, West Hollywood",
+    "price": 25,
+    "url": "https://example.com/comedy-store",
+    "tags": ["comedy", "bars", "live_music", "indoor"]
+  },
+  {
+    "id": "evt_006",
+    "title": "Rooftop DJ Set — The Roof on Wilshire",
+    "datetime": "2026-04-25T20:00:00-07:00",
+    "duration_minutes": 240,
+    "location": "The Roof on Wilshire, Beverly Hills",
+    "price": 20,
+    "url": "https://example.com/rooftop-dj",
+    "tags": ["live_music", "bars", "outdoor", "nightlife"]
+  },
+  {
+    "id": "evt_007",
+    "title": "Farmers Market Brunch — Grand Central",
+    "datetime": "2026-04-26T10:00:00-07:00",
+    "duration_minutes": 120,
+    "location": "Grand Central Market, DTLA",
+    "price": 25,
+    "url": "https://example.com/grand-central-brunch",
+    "tags": ["food", "coffee", "vegetarian", "outdoor"]
+  },
+  {
+    "id": "evt_008",
+    "title": "Yoga in Griffith Park",
+    "datetime": "2026-04-26T09:00:00-07:00",
+    "duration_minutes": 60,
+    "location": "Griffith Park, Los Angeles",
+    "price": 0,
+    "url": "https://example.com/griffith-yoga",
+    "tags": ["yoga", "outdoor", "free", "morning"]
+  },
+  {
+    "id": "evt_009",
+    "title": "BBQ & Bourbon Night — Culver City",
+    "datetime": "2026-04-25T19:00:00-07:00",
+    "duration_minutes": 180,
+    "location": "Maude's Liquor Bar, Culver City",
+    "price": 55,
+    "url": "https://example.com/bbq-bourbon",
+    "tags": ["bbq", "food", "bars", "indoor"]
+  },
+  {
+    "id": "evt_010",
+    "title": "Indie Coffee Crawl — Silver Lake",
+    "datetime": "2026-04-26T11:00:00-07:00",
+    "duration_minutes": 150,
+    "location": "Silver Lake, Los Angeles",
+    "price": 30,
+    "url": "https://example.com/coffee-crawl",
+    "tags": ["coffee", "food", "outdoor", "walking"]
+  },
+  {
+    "id": "evt_011",
+    "title": "LACMA After Hours",
+    "datetime": "2026-04-25T18:00:00-07:00",
+    "duration_minutes": 180,
+    "location": "LACMA, Mid-Wilshire",
+    "price": 25,
+    "url": "https://example.com/lacma-after-hours",
+    "tags": ["art", "gallery", "live_music", "indoor"]
+  },
+  {
+    "id": "evt_012",
+    "title": "Dodgers vs. Giants",
+    "datetime": "2026-04-28T19:10:00-07:00",
+    "duration_minutes": 210,
+    "location": "Dodger Stadium, Los Angeles",
+    "price": 45,
+    "url": "https://example.com/dodgers-giants",
+    "tags": ["sports", "outdoor", "ticketed"]
+  }
+]

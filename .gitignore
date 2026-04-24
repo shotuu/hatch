@@ -1,0 +1,26 @@
+.env
+.env.local
+*.pyc
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.DS_Store
+
+# Google OAuth tokens — never commit
+data/tokens/*.json
+!data/tokens/.gitkeep
+
+# API keys (local scratch file)
+keys.txt
+
+# Web
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Editor
+.vscode/
+.idea/
