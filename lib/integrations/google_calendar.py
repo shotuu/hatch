@@ -95,6 +95,11 @@ def freebusy(
     return out
 
 
+# Marker stamped on every Hatch-created event so cleanup can find them.
+HATCH_MARKER_KEY = "source"
+HATCH_MARKER_VAL = "hatch"
+
+
 def insert_event(
     token_path: str,
     *,
@@ -111,13 +116,77 @@ def insert_event(
         "description": description,
         "start": {"dateTime": start.isoformat()},
         "end": {"dateTime": end.isoformat()},
+        "extendedProperties": {
+            "private": {HATCH_MARKER_KEY: HATCH_MARKER_VAL},
+        },
     }
     return svc.events().insert(calendarId="primary", body=body).execute()
+
+
+def list_hatch_events(
+    token_path: str,
+    *,
+    time_min: datetime | None = None,
+    time_max: datetime | None = None,
+) -> list[dict]:
+    """Return every Hatch-tagged event in the window. Defaults to ± 60 days from now."""
+    svc = _service(token_path)
+    now = datetime.now().astimezone()
+    if time_min is None:
+        time_min = now.replace(microsecond=0) - _days(60)
+    if time_max is None:
+        time_max = now.replace(microsecond=0) + _days(60)
+    resp = svc.events().list(
+        calendarId="primary",
+        privateExtendedProperty=f"{HATCH_MARKER_KEY}={HATCH_MARKER_VAL}",
+        timeMin=time_min.isoformat(),
+        timeMax=time_max.isoformat(),
+        singleEvents=True,
+        maxResults=2500,
+    ).execute()
+    return resp.get("items", [])
+
+
+def delete_event(token_path: str, event_id: str) -> None:
+    svc = _service(token_path)
+    svc.events().delete(calendarId="primary", eventId=event_id).execute()
+
+
+def delete_hatch_events(
+    token_path: str,
+    *,
+    time_min: datetime | None = None,
+    time_max: datetime | None = None,
+    dry_run: bool = False,
+) -> list[dict]:
+    """Delete every Hatch-tagged event in the window. Returns what was (or would be) deleted."""
+    items = list_hatch_events(token_path, time_min=time_min, time_max=time_max)
+    if not dry_run:
+        for ev in items:
+            try:
+                delete_event(token_path, ev["id"])
+            except Exception as e:
+                print(f"  ! failed to delete {ev.get('summary')}: {e}")
+    return items
+
+
+def _days(n: int):
+    from datetime import timedelta
+    return timedelta(days=n)
 
 
 if __name__ == "__main__":
     if len(sys.argv) >= 3 and sys.argv[1] == "authorize":
         path = authorize(sys.argv[2])
         print(f"Saved token → {path}")
+    elif len(sys.argv) >= 3 and sys.argv[1] == "cleanup":
+        user_id = sys.argv[2]
+        token = ROOT / "data" / "tokens" / f"{user_id}.json"
+        deleted = delete_hatch_events(str(token.relative_to(ROOT)))
+        print(f"Deleted {len(deleted)} Hatch event(s) for {user_id}")
     else:
-        print("usage: python -m lib.integrations.google_calendar authorize <user_id>")
+        print(
+            "usage:\n"
+            "  python -m lib.integrations.google_calendar authorize <user_id>\n"
+            "  python -m lib.integrations.google_calendar cleanup   <user_id>"
+        )

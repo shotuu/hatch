@@ -59,6 +59,27 @@ async def book(req: BookRequest) -> dict:
     return await orchestrator.book_plan(req.event_id)
 
 
+@app.post("/cleanup")
+def cleanup(dry_run: bool = False) -> dict:
+    """Delete all Hatch-tagged events from every user's calendar."""
+    from lib.integrations import google_calendar
+
+    users = matching.load_users()
+    summary = []
+    total_deleted = 0
+    for u in users:
+        try:
+            items = google_calendar.delete_hatch_events(
+                u["google_token_path"], dry_run=dry_run
+            )
+            summary.append({"user": u["id"], "count": len(items)})
+            if not dry_run:
+                total_deleted += len(items)
+        except Exception as e:
+            summary.append({"user": u["id"], "error": str(e)})
+    return {"ok": True, "dry_run": dry_run, "total_deleted": total_deleted, "per_user": summary}
+
+
 @app.post("/react")
 def react(req: ReactRequest) -> dict:
     """Reactive mode — match a free-text query against curated events."""

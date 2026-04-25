@@ -36,3 +36,15 @@ export async function react(query: string): Promise<ReactResponse> {
   });
   return r.json();
 }
+
+export type CleanupResponse = {
+  ok: boolean;
+  dry_run: boolean;
+  total_deleted: number;
+  per_user: { user: string; count?: number; error?: string }[];
+};
+
+export async function wipe(): Promise<CleanupResponse> {
+  const r = await fetch(`${BASE}/cleanup`, { method: "POST" });
+  return r.json();
+}

@@ -2,24 +2,22 @@ import { ReactNode } from "react";
 
 export default function PhoneFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-cream-100 via-cream-50 to-coral-50 cream-grain">
-      <div className="relative w-[390px] h-[844px] rounded-[48px] bg-cream-50 shadow-warmlg ring-1 ring-ink-faint/40 overflow-hidden">
-        {/* Dynamic Island */}
-        <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-32 h-7 bg-ink rounded-full z-30" />
+    <div className="relative w-[390px] h-[844px] rounded-[48px] bg-cream-50 shadow-warmlg ring-1 ring-ink-faint/40 overflow-hidden shrink-0">
+      {/* Dynamic Island */}
+      <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-32 h-7 bg-ink rounded-full z-30" />
 
-        {/* iOS status bar */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-8 pt-3.5 text-[13px] font-semibold text-ink pointer-events-none">
-          <span>9:41</span>
-          <div className="flex items-center gap-1.5">
-            <SignalIcon />
-            <WifiIcon />
-            <BatteryIcon />
-          </div>
+      {/* iOS status bar */}
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-8 pt-3.5 text-[13px] font-semibold text-ink pointer-events-none">
+        <span>9:41</span>
+        <div className="flex items-center gap-1.5">
+          <SignalIcon />
+          <WifiIcon />
+          <BatteryIcon />
         </div>
+      </div>
 
-        <div className="h-full w-full bg-cream-50 pt-12 flex flex-col">
-          {children}
-        </div>
+      <div className="h-full w-full bg-cream-50 pt-12 flex flex-col">
+        {children}
       </div>
     </div>
   );
