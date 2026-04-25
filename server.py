@@ -44,6 +44,7 @@ class ApproveRequest(BaseModel):
 
 class ProposeIdeaRequest(BaseModel):
     event_id: str
+    user_id: str | None = None
 
 
 class DismissIdeaRequest(BaseModel):
@@ -53,6 +54,11 @@ class DismissIdeaRequest(BaseModel):
 class ReactRequest(BaseModel):
     query: str
     parent_id: str | None = None
+
+
+class SetWarmthRequest(BaseModel):
+    days: int
+    auto_propose: bool = True  # when nest goes cold, fire the agent
 
 
 # ──────────────────────── core ────────────────────────
@@ -146,6 +152,26 @@ async def dismiss_proposal() -> dict:
     return {"ok": True}
 
 
+@app.post("/set_warmth")
+async def set_warmth(req: SetWarmthRequest) -> dict:
+    """Dev-console hook: directly set nest warmth (0–30) and, if it just went
+    cold and no proposal is active, auto-fire the proactive pipeline so the
+    UI shows the agent reacting in real time."""
+    s = store()
+    new_value = await s.set_warmth(req.days)
+    auto_fired = False
+    if req.auto_propose and s.is_cold(threshold=3):
+        plan = await orchestrator.propose_plan()
+        if plan.get("ok"):
+            await s.set_proposal(
+                window=plan["window"],
+                event=plan["event"],
+                alternates=plan.get("alternates", []),
+            )
+            auto_fired = True
+    return {"ok": True, "warmth": new_value, "auto_proposed": auto_fired}
+
+
 @app.post("/swap_alternate")
 async def swap_alternate() -> dict:
     p = await store().swap_to_alternate()
@@ -165,7 +191,7 @@ async def dismiss_idea(req: DismissIdeaRequest) -> dict:
 
 @app.post("/propose_idea")
 async def propose_idea(req: ProposeIdeaRequest) -> dict:
-    p = await store().propose_idea(req.event_id)
+    p = await store().propose_idea(req.event_id, proposer_user_id=req.user_id)
     if not p:
         raise HTTPException(404, "idea not found")
     return {"ok": True}

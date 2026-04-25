@@ -1,10 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import HatchLogo from "./HatchLogo";
-import type { Idea } from "./types";
+import type { Event, Idea } from "./types";
 
 type Props = {
   open: boolean;
   ideas: Idea[];
+  plannedEvents: Event[];
+  rejectedEventIds: Set<string>;
   onClose: () => void;
   onPropose: (eventId: string) => void;
   onDismiss: (eventId: string) => void;
@@ -25,10 +28,23 @@ const SOURCE_STYLE: Record<Idea["source"], string> = {
 export default function IdeasPanel({
   open,
   ideas,
+  plannedEvents,
+  rejectedEventIds,
   onClose,
   onPropose,
   onDismiss,
 }: Props) {
+  const plannedEventIds = new Set(plannedEvents.map((e) => e.id));
+  const isTerminal = (idea: Idea) =>
+    plannedEventIds.has(idea.event.id) || rejectedEventIds.has(idea.event.id);
+  const activeIdeas = ideas.filter((i) => !i.dismissed && !isTerminal(i));
+  const hiddenIdeas = ideas.filter((i) => i.dismissed && !isTerminal(i));
+  const [hiddenOpen, setHiddenOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) setHiddenOpen(false);
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -71,15 +87,72 @@ export default function IdeasPanel({
             </header>
 
             <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-2">
-              {ideas.length === 0 && (
-                <div className="text-center py-12 px-6">
-                  <div className="text-[13px] text-ink-muted">
-                    Nothing yet. Hatch will surface anything y'all bring up here.
+              {activeIdeas.length === 0 &&
+                hiddenIdeas.length === 0 &&
+                plannedEvents.length === 0 && (
+                  <div className="text-center py-12 px-6">
+                    <div className="text-[13px] text-ink-muted">
+                      Nothing yet. Hatch will surface anything y'all bring up here.
+                    </div>
+                  </div>
+                )}
+
+              {plannedEvents.length > 0 && (
+                <div className="pb-2">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-[#1F7A4A] mb-2 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-mint" />
+                    Planned · {plannedEvents.length}
+                  </div>
+                  <div className="space-y-2">
+                    {plannedEvents.map((e) => {
+                      const when = new Date(e.datetime);
+                      return (
+                        <motion.div
+                          key={e.id}
+                          layout
+                          initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, x: 30 }}
+                          transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                          className="rounded-2xl bg-mint/12 ring-1 ring-mint/40 p-3 shadow-bubble relative overflow-hidden"
+                        >
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-mint text-white flex items-center justify-center text-[11px] font-bold">
+                            ✓
+                          </div>
+                          <div className="text-[9px] uppercase tracking-wider font-semibold text-[#1F7A4A] mb-1">
+                            Booked
+                          </div>
+                          <div className="text-[13px] font-semibold text-ink leading-tight pr-6">
+                            {e.title}
+                          </div>
+                          <div className="text-[11px] text-ink-muted mt-1">
+                            {e.location} ·{" "}
+                            {when.toLocaleDateString(undefined, {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                            {" · "}
+                            {when.toLocaleTimeString([], {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {ideas.map((idea, i) => {
+              {activeIdeas.length > 0 && (
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted mb-1 mt-1 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-coral-500" />
+                  Ideas in the air · {activeIdeas.length}
+                </div>
+              )}
+
+              {activeIdeas.map((idea, i) => {
                 const e = idea.event;
                 const when = new Date(e.datetime);
                 return (
@@ -142,6 +215,67 @@ export default function IdeasPanel({
                   </motion.div>
                 );
               })}
+
+              {hiddenIdeas.length > 0 && (
+                <div className="pt-3 mt-2 border-t border-ink-faint/40">
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setHiddenOpen((v) => !v)}
+                    className="w-full flex items-center justify-between text-[11px] uppercase tracking-wider font-semibold text-ink-muted px-1 py-1"
+                    aria-expanded={hiddenOpen}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <motion.span
+                        animate={{ rotate: hiddenOpen ? 90 : 0 }}
+                        transition={{ type: "spring", stiffness: 320, damping: 24 }}
+                        className="inline-block leading-none text-[10px]"
+                      >
+                        ▸
+                      </motion.span>
+                      Hidden
+                    </span>
+                    <span className="text-ink-subtle">{hiddenIdeas.length}</span>
+                  </motion.button>
+
+                  <AnimatePresence initial={false}>
+                    {hiddenOpen && (
+                      <motion.div
+                        key="hidden-body"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.22 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="pt-2 space-y-1.5">
+                          {hiddenIdeas.map((idea) => {
+                            const e = idea.event;
+                            const when = new Date(e.datetime);
+                            return (
+                              <div
+                                key={e.id}
+                                className="rounded-xl bg-cream-100/70 ring-1 ring-ink-faint/30 px-3 py-2 opacity-80"
+                              >
+                                <div className="text-[12.5px] font-medium text-ink-muted leading-tight truncate">
+                                  {e.title}
+                                </div>
+                                <div className="text-[10.5px] text-ink-subtle truncate mt-0.5">
+                                  {e.location} ·{" "}
+                                  {when.toLocaleDateString(undefined, {
+                                    weekday: "short",
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
           </motion.aside>
         </>

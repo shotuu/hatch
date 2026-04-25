@@ -7,6 +7,8 @@ type Props = {
   proposal: Proposal;
   viewer: User;
   members: User[];
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   onApprove: () => void;
   onSkip: () => void;
   onSwap: () => void;
@@ -25,6 +27,8 @@ export default function AgentMessage({
   proposal,
   viewer,
   members,
+  collapsed = false,
+  onToggleCollapse,
   onApprove,
   onSkip,
   onSwap,
@@ -46,17 +50,79 @@ export default function AgentMessage({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ type: "spring", stiffness: 320, damping: 26, mass: 0.9 }}
-      className="mx-3 my-3 rounded-[22px] bg-gradient-to-br from-coral-50 via-cream-50 to-yolk/20 ring-1 ring-coral-200/70 p-3.5 shadow-warm relative overflow-hidden"
+      className="mx-3 my-3 rounded-[22px] bg-gradient-to-br from-coral-50 via-cream-50 to-[#FFF1BF] ring-1 ring-coral-200/70 p-3.5 shadow-warm relative overflow-hidden"
     >
       <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-white/60 to-transparent pointer-events-none" />
 
-      <div className="flex items-center gap-1.5 mb-2 relative">
+      <div className="flex items-center gap-1.5 relative">
         <HatchLogo size={16} />
         <div className="text-[11px] uppercase tracking-wider text-coral-700 font-semibold">
-          Hatch · pinned
+          Hatch · plan
         </div>
+        {collapsed && proposal.status === "pending" && (
+          <span className="ml-1.5 text-[10px] text-ink-muted font-medium">
+            {approvedCount}/{totalCount} in
+          </span>
+        )}
+        {collapsed && proposal.status === "booking" && (
+          <span className="ml-1.5 text-[10px] text-coral-700 font-medium">
+            booking…
+          </span>
+        )}
+        {collapsed && proposal.status === "booked" && (
+          <span className="ml-1.5 text-[10px] text-[#1F7A4A] font-semibold">
+            ✓ booked
+          </span>
+        )}
+        {onToggleCollapse && (
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? "Expand plan" : "Collapse plan"}
+            className="ml-auto w-6 h-6 rounded-full bg-white/70 ring-1 ring-coral-200/70 flex items-center justify-center text-coral-700 text-[11px]"
+          >
+            <motion.span
+              animate={{ rotate: collapsed ? 0 : 180 }}
+              transition={{ type: "spring", stiffness: 320, damping: 24 }}
+              className="inline-block leading-none"
+            >
+              ▾
+            </motion.span>
+          </motion.button>
+        )}
       </div>
 
+      <AnimatePresence initial={false}>
+        {collapsed && (
+          <motion.div
+            key="collapsed-summary"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden relative"
+          >
+            <div className="mt-1.5 text-[13.5px] font-semibold text-ink leading-snug truncate">
+              {proposal.event.title}
+            </div>
+            <div className="text-[11.5px] text-ink-muted mt-0.5 truncate">
+              {windowText} · {proposal.event.location}
+              {proposal.event.price > 0 ? ` · $${proposal.event.price}` : " · Free"}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence initial={false}>
+        {!collapsed && (
+          <motion.div
+            key="body"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden mt-2"
+          >
       <div className="text-[14.5px] leading-snug text-ink relative">
         Y'all are free <b className="text-ink">{windowText}</b>.
         <motion.div
@@ -134,10 +200,10 @@ export default function AgentMessage({
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={proposal.alternates.length ? onSwap : onSkip}
+              onClick={onSkip}
               className="rounded-full bg-white ring-1 ring-ink-faint/50 text-[12px] py-2.5 text-ink-muted font-medium"
             >
-              {proposal.alternates.length ? "Other" : "Skip"}
+              Skip
             </motion.button>
           </motion.div>
         )}
@@ -184,8 +250,11 @@ export default function AgentMessage({
               ✓
             </span>
             <span>
-              Booked. <b>30 more days together</b> — chat is alive again.
+              Booked. <b>Nest is glowing</b> — see you there.
             </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>

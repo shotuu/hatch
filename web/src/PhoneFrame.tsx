@@ -1,11 +1,24 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 type Props = {
   children: ReactNode;
   label?: string;
 };
 
+function formatNow() {
+  const d = new Date();
+  const h = d.getHours() % 12 || 12;
+  const m = d.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
 export default function PhoneFrame({ children, label }: Props) {
+  const [now, setNow] = useState(formatNow);
+  useEffect(() => {
+    const id = setInterval(() => setNow(formatNow()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="flex flex-col items-center gap-2 shrink-0">
       {label && (
@@ -19,7 +32,7 @@ export default function PhoneFrame({ children, label }: Props) {
 
         {/* iOS status bar */}
         <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-8 pt-3.5 text-[13px] font-semibold text-ink pointer-events-none">
-          <span>9:41</span>
+          <span>{now}</span>
           <div className="flex items-center gap-1.5">
             <SignalIcon />
             <WifiIcon />

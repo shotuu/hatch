@@ -23,7 +23,7 @@ from lib import matching
 @dataclass
 class ChatMessage:
     id: str
-    kind: Literal["user", "reactive"]
+    kind: Literal["user", "reactive", "proposal", "celebration"]
     ts: str
     # user fields
     author_id: str | None = None
@@ -32,6 +32,8 @@ class ChatMessage:
     parent_id: str | None = None
     query: str | None = None
     matches: list[dict] = field(default_factory=list)
+    proposal_id: str | None = None
+    event_title: str | None = None
 
 
 ProposalStatus = Literal["pending", "booking", "booked", "skipped"]
@@ -66,7 +68,10 @@ class GroupState:
         self.lock = asyncio.Lock()
         self.messages: list[ChatMessage] = []
         self.current_proposal: Proposal | None = None
-        self.expiry_days: int = 6
+        # nest_warmth: 0–30. Decays as the group goes silent, restores to 30
+        # when a plan books. The carrot version of an "expiry countdown" —
+        # the chat never dies, but its nest can go cold.
+        self.nest_warmth: int = 6
         self.last_booking: dict | None = None
         self.ideas: list[Idea] = []  # ordered by score desc
 
@@ -76,7 +81,9 @@ class GroupState:
         return {
             "messages": [asdict(m) for m in self.messages],
             "current_proposal": asdict(self.current_proposal) if self.current_proposal else None,
-            "expiry_days": self.expiry_days,
+            "nest_warmth": self.nest_warmth,
+            "nest_max": 30,
+            "expiry_days": self.nest_warmth,
             "last_booking": self.last_booking,
             "ideas": [asdict(i) for i in self.ideas if not i.dismissed],
             "users": [{"id": u["id"], "name": u["name"], "color": u["avatar_color"]} for u in matching.load_users()],
@@ -134,7 +141,7 @@ class GroupState:
     async def set_proposal(self, *, window: dict, event: dict, alternates: list[dict]) -> Proposal:
         async with self.lock:
             user_ids = self._user_ids()
-            self.current_proposal = Proposal(
+            proposal = Proposal(
                 id=f"p_{uuid4().hex[:8]}",
                 window=window,
                 event=event,
@@ -143,6 +150,7 @@ class GroupState:
                 status="pending",
                 created_at=self._now_iso(),
             )
+            self.current_proposal = proposal
             self._add_idea(event, source="proposal", score=int(event.get("_score", 0)) or 5)
             for alt in alternates:
                 self._add_idea(alt, source="alternate", score=int(alt.get("_score", 0)) or 2)
@@ -172,8 +180,17 @@ class GroupState:
             if self.current_proposal:
                 self.current_proposal.status = "booked"
                 self.current_proposal.booking = result
+                self.messages.append(
+                    ChatMessage(
+                        id=f"c_{uuid4().hex[:8]}",
+                        kind="celebration",
+                        ts=self._now_iso(),
+                        text="the group hatched a plan",
+                        event_title=self.current_proposal.event.get("title"),
+                    )
+                )
             self.last_booking = result
-            self.expiry_days = 30  # reset
+            self.nest_warmth = 30  # nest fully restored
 
     async def skip_proposal(self) -> None:
         async with self.lock:
@@ -199,7 +216,9 @@ class GroupState:
                 if i.event.get("id") == event_id:
                     i.dismissed = True
 
-    async def propose_idea(self, event_id: str) -> Proposal | None:
+    async def propose_idea(
+        self, event_id: str, proposer_user_id: str | None = None
+    ) -> Proposal | None:
         """Take an idea from the panel and turn it into the current proposal."""
         from datetime import timedelta
 
@@ -211,22 +230,35 @@ class GroupState:
             start = datetime.fromisoformat(event["datetime"])
             end = start + timedelta(minutes=event["duration_minutes"])
             user_ids = self._user_ids()
-            self.current_proposal = Proposal(
+            approvals = {uid: False for uid in user_ids}
+            if proposer_user_id in approvals:
+                approvals[proposer_user_id] = True
+            proposal = Proposal(
                 id=f"p_{uuid4().hex[:8]}",
                 window={"start": start.isoformat(), "end": end.isoformat()},
                 event=event,
                 alternates=[],
-                approvals={uid: False for uid in user_ids},
+                approvals=approvals,
                 status="pending",
                 created_at=self._now_iso(),
             )
+            self.current_proposal = proposal
             return self.current_proposal
+
+    async def set_warmth(self, days: int) -> int:
+        """Directly set the nest-warmth value (0–30). Used by dev time controls."""
+        async with self.lock:
+            self.nest_warmth = max(0, min(30, int(days)))
+            return self.nest_warmth
+
+    def is_cold(self, threshold: int = 3) -> bool:
+        return self.nest_warmth <= threshold and self.current_proposal is None
 
     async def reset(self) -> None:
         async with self.lock:
             self.messages = _seed_messages()
             self.current_proposal = None
-            self.expiry_days = 6
+            self.nest_warmth = 6
             self.last_booking = None
             self.ideas = []
 

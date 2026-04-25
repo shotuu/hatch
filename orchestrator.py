@@ -145,7 +145,7 @@ def book_plan_local(event_id: str) -> dict:
         "ok": written > 0,
         "event_id": event_id,
         "calendars_written": written,
-        "expiry_reset_days": 30,
+        "nest_restore": 30,
         "failures": failures,
     }
 
@@ -207,7 +207,7 @@ async def book_plan_remote(event_id: str) -> dict:
         "ok": resp.ok,
         "event_id": event_id,
         "calendars_written": resp.calendars_written,
-        "expiry_reset_days": resp.expiry_reset_days,
+        "nest_restore": resp.nest_restore,
         "error": resp.error,
     }
 

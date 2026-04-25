@@ -23,8 +23,12 @@ export const api = {
   swapAlternate: () => jpost("/swap_alternate"),
 
   dismissIdea: (event_id: string) => jpost("/dismiss_idea", { event_id }),
-  proposeIdea: (event_id: string) => jpost("/propose_idea", { event_id }),
+  proposeIdea: (event_id: string, user_id?: string) =>
+    jpost("/propose_idea", { event_id, user_id }),
 
   reset: () => jpost("/reset"),
   wipe: () => jpost("/cleanup"),
+
+  setWarmth: (days: number, auto_propose = true) =>
+    jpost("/set_warmth", { days, auto_propose }),
 };
