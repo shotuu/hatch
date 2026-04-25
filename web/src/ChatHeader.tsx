@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import HatchLogo from "./HatchLogo";
+import { NestMeter } from "./Nest";
 import type { User } from "./types";
 
 type Props = {
@@ -108,7 +109,7 @@ export default function ChatHeader({
         </motion.button>
       </div>
 
-      <NestMeter warmth={nestWarmth} max={nestMax} />
+      <NestMeter warmth={expiryDays} />
     </header>
   );
 }

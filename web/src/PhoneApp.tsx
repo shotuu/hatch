@@ -10,6 +10,27 @@ type Props = {
   actions: GroupActions;
 };
 
+/** Per-phone shell. Each phone holds its own list-vs-chat state so multiple
+ * phones in the demo can be on different screens simultaneously. */
+export default function PhoneApp({ viewer, actions }: Props) {
+  const [view, setView] = useState<"list" | "chat">("list");
+
+  if (view === "chat") {
+    return (
+      <ChatView
+        viewer={viewer}
+        actions={actions}
+        onBack={() => setView("list")}
+      />
+    );
+  }
+
+  return (
+    <ChatListView
+      viewer={viewer}
+      snapshot={actions.snapshot}
+      onOpenChat={() => setView("chat")}
+    />
 export default function PhoneApp({ viewer, actions }: Props) {
   const [view, setView] = useState<"chats" | "chat">("chat");
 
