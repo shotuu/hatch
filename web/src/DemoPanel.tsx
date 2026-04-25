@@ -12,13 +12,24 @@ export default function DemoPanel({ actions }: Props) {
   const {
     busy,
     wipeStatus,
+    calendarFixtureStatus,
+    calendarFixtureBusy,
+    calendarFixtureMessage,
     reset,
     onWipe,
+    seedCalendarFixtures,
+    deleteCalendarFixtures,
     setWarmth,
     snapshot,
   } = actions;
   const warmth = snapshot.nest_warmth;
   const tier = nestTier(warmth);
+  const fixtureReady = !!calendarFixtureStatus?.ready;
+  const fixtureHasEvents = (calendarFixtureStatus?.actual_total || 0) > 0;
+  const fixtureIssues = calendarFixtureStatus?.users
+    .filter((u) => !u.ready)
+    .flatMap((u) => u.issues.map((i) => `${u.name}: ${i}`))
+    .slice(0, 2);
 
   const [autoDecay, setAutoDecay] = useState(false);
   const [decayRateMs, setDecayRateMs] = useState(2000);
@@ -38,7 +49,7 @@ export default function DemoPanel({ actions }: Props) {
     return () => clearInterval(id);
   }, [autoDecay, decayRateMs, setWarmth]);
   return (
-    <aside className="w-[260px] shrink-0 rounded-3xl bg-cream-50 ring-1 ring-ink-faint/40 shadow-warmlg p-5 flex flex-col gap-5 self-start mt-12">
+    <aside className="w-[260px] max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar shrink-0 rounded-3xl bg-cream-50 ring-1 ring-ink-faint/40 shadow-warmlg p-5 flex flex-col gap-5 self-start mt-12 xl:sticky xl:top-10">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HatchLogo size={20} />
@@ -121,6 +132,24 @@ export default function DemoPanel({ actions }: Props) {
       </Section>
 
       <Section title="Calendars">
+        <GhostBtn
+          onClick={seedCalendarFixtures}
+          busy={busy || calendarFixtureBusy || fixtureReady}
+        >
+          {fixtureReady ? "Demo blocks ready" : "Seed demo busy blocks"}
+        </GhostBtn>
+        <DangerBtn
+          onClick={deleteCalendarFixtures}
+          busy={busy || calendarFixtureBusy || !fixtureHasEvents}
+        >
+          Clear demo busy blocks
+        </DangerBtn>
+        <CalendarFixtureStatus
+          ready={fixtureReady}
+          checking={!calendarFixtureStatus}
+          message={calendarFixtureMessage}
+          issues={fixtureIssues || []}
+        />
         <DangerBtn onClick={onWipe} busy={busy}>
           Wipe Hatch events
         </DangerBtn>
@@ -142,11 +171,42 @@ export default function DemoPanel({ actions }: Props) {
 
       <footer className="mt-auto pt-3 border-t border-ink-faint/40 text-[10px] text-ink-subtle leading-relaxed">
         <div>
-          <span className="text-ink-muted font-mono">localhost:8000</span>
+          <span className="text-ink-muted font-mono">backend: /api</span>
         </div>
         <div className="mt-1">Hide before live demo.</div>
       </footer>
     </aside>
+  );
+}
+
+function CalendarFixtureStatus({
+  ready,
+  checking,
+  message,
+  issues,
+}: {
+  ready: boolean;
+  checking: boolean;
+  message: string | null;
+  issues: string[];
+}) {
+  const label = message || (checking ? "checking calendars…" : ready ? "fixture intact" : "needs reseed");
+  return (
+    <div className="rounded-lg bg-white/70 ring-1 ring-ink-faint/40 px-2.5 py-2 text-[11px] text-ink-muted leading-snug">
+      <div className="flex items-center gap-1.5 font-semibold">
+        <span
+          className={`w-1.5 h-1.5 rounded-full ${
+            ready ? "bg-mint" : checking ? "bg-yolk" : "bg-coral-500"
+          }`}
+        />
+        {label}
+      </div>
+      {!ready && issues.length > 0 && (
+        <div className="mt-1 text-[10px] text-ink-subtle">
+          {issues.join(" · ")}
+        </div>
+      )}
+    </div>
   );
 }
 

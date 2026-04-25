@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ mode }) => {
   const repoRoot = path.resolve(__dirname, "..");
   const env = loadEnv(mode, repoRoot, "");
-  const port = env.SERVER_PORT || "8000";
+  const port = env.SERVER_PORT || "8005";
   const target = `http://127.0.0.1:${port}`;
 
   return {

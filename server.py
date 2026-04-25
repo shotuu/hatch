@@ -194,7 +194,17 @@ async def dismiss_idea(req: DismissIdeaRequest) -> dict:
 
 @app.post("/propose_idea")
 async def propose_idea(req: ProposeIdeaRequest) -> dict:
-    p = await store().propose_idea(req.event_id, proposer_user_id=req.user_id)
+    s = store()
+    idea = next((i for i in s.ideas if i.event.get("id") == req.event_id and not i.dismissed), None)
+    if idea:
+        availability = await asyncio.to_thread(orchestrator.event_availability, idea.event)
+        if not availability.get("ok"):
+            return {"ok": False, "reason": availability.get("reason", "calendar unavailable")}
+        if not availability.get("available"):
+            names = ", ".join(c["name"] for c in availability.get("conflicts", []))
+            return {"ok": False, "reason": f"calendar conflict for {names}"}
+
+    p = await s.propose_idea(req.event_id, proposer_user_id=req.user_id)
     if not p:
         raise HTTPException(404, "idea not found")
     return {"ok": True}
@@ -219,6 +229,113 @@ def cleanup(dry_run: bool = False) -> dict:
         except Exception as e:
             summary.append({"user": u["id"], "error": str(e)})
     return {"ok": True, "dry_run": dry_run, "total_deleted": total_deleted, "per_user": summary}
+
+
+def _calendar_demo_status() -> dict:
+    from lib.integrations import google_calendar
+
+    users = matching.load_users()
+    per_user = []
+    expected_total = 0
+    actual_total = 0
+    ready = True
+    for u in users:
+        token_path = google_calendar.ROOT / u["google_token_path"]
+        expected_count = len(google_calendar.demo_busy_fixtures_for(u["id"]))
+        expected_total += expected_count
+        if not token_path.exists():
+            ready = False
+            per_user.append({
+                "id": u["id"],
+                "name": u["name"],
+                "ready": False,
+                "expected_count": expected_count,
+                "actual_count": 0,
+                "issues": ["missing Google token"],
+            })
+            continue
+        try:
+            status = google_calendar.demo_busy_status(u["google_token_path"], u["id"])
+            actual_total += int(status["actual_count"])
+            if not status["ready"]:
+                ready = False
+            per_user.append({"id": u["id"], "name": u["name"], **status})
+        except Exception as e:
+            ready = False
+            per_user.append({
+                "id": u["id"],
+                "name": u["name"],
+                "ready": False,
+                "expected_count": expected_count,
+                "actual_count": 0,
+                "issues": [str(e)],
+            })
+
+    return {
+        "ok": True,
+        "ready": ready and bool(users),
+        "expected_total": expected_total,
+        "actual_total": actual_total,
+        "users": per_user,
+    }
+
+
+@app.get("/calendar_demo/status")
+def calendar_demo_status() -> dict:
+    return _calendar_demo_status()
+
+
+@app.post("/calendar_demo/seed")
+def seed_calendar_demo() -> dict:
+    from lib.integrations import google_calendar
+
+    created_total = 0
+    deleted_total = 0
+    per_user = []
+    for u in matching.load_users():
+        token_path = google_calendar.ROOT / u["google_token_path"]
+        if not token_path.exists():
+            per_user.append({"id": u["id"], "name": u["name"], "error": "missing Google token"})
+            continue
+        try:
+            result = google_calendar.seed_demo_busy_events(u["google_token_path"], u["id"])
+            created_total += int(result["created"])
+            deleted_total += int(result["deleted"])
+            per_user.append({"id": u["id"], "name": u["name"], **result})
+        except Exception as e:
+            per_user.append({"id": u["id"], "name": u["name"], "error": str(e)})
+    return {
+        "ok": True,
+        "created_total": created_total,
+        "deleted_total": deleted_total,
+        "per_user": per_user,
+        "status": _calendar_demo_status(),
+    }
+
+
+@app.post("/calendar_demo/delete")
+def delete_calendar_demo() -> dict:
+    from lib.integrations import google_calendar
+
+    deleted_total = 0
+    per_user = []
+    for u in matching.load_users():
+        token_path = google_calendar.ROOT / u["google_token_path"]
+        if not token_path.exists():
+            per_user.append({"id": u["id"], "name": u["name"], "deleted": 0})
+            continue
+        try:
+            deleted = google_calendar.delete_demo_busy_events(u["google_token_path"])
+            deleted_total += len(deleted)
+            per_user.append({"id": u["id"], "name": u["name"], "deleted": len(deleted)})
+        except Exception as e:
+            per_user.append({"id": u["id"], "name": u["name"], "error": str(e)})
+    return {
+        "ok": True,
+        "deleted_total": deleted_total,
+        "per_user": per_user,
+        "status": _calendar_demo_status(),
+    }
 
 
 @app.get("/users")

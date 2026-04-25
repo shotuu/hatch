@@ -1,6 +1,7 @@
 """Calendar agent — wraps lib.integrations.google_calendar.freebusy + matching.find_overlap."""
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -42,15 +43,20 @@ def handle(req: CalendarRequest) -> CalendarResponse:
         if (Path(__file__).resolve().parent.parent / u["google_token_path"]).exists()
     }
 
+    allow_mock = os.environ.get("ALLOW_MOCK_CALENDAR", "0") == "1"
     busy: dict = {}
-    if token_paths and len(token_paths) == len(selected):
+    if len(token_paths) == len(selected):
         try:
             from lib.integrations import google_calendar
             busy = google_calendar.freebusy(token_paths, start, end)
         except Exception:
+            if not allow_mock:
+                return CalendarResponse(windows=[])
             busy = {u["id"]: [] for u in selected}
-    else:
+    elif allow_mock:
         busy = {u["id"]: [] for u in selected}
+    else:
+        return CalendarResponse(windows=[])
 
     windows = matching.find_overlap(busy, start, end, min_minutes=req.min_window_minutes)
     return CalendarResponse(
