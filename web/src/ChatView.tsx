@@ -31,7 +31,7 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
     proposeIdea,
     proposeReactiveOption,
     skipReactiveOption,
-    dismissIdea,
+    hideIdea,
   } = actions;
   const { messages, current_proposal, nest_warmth, nest_max, users, ideas } = snapshot;
   const proposalActive =
@@ -40,7 +40,10 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
   const bookedEventIds = new Set(plannedEvents.map((e) => e.id));
   const terminalIdeaIds = new Set([...bookedEventIds, ...rejectedEventIds]);
   const visibleIdeasCount = ideas.filter(
-    (i) => !i.dismissed && !terminalIdeaIds.has(i.event.id),
+    (i) =>
+      !i.dismissed &&
+      !(i.hidden ?? []).includes(viewer.id) &&
+      !terminalIdeaIds.has(i.event.id),
   ).length;
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -196,12 +199,13 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
         ideas={ideas}
         plannedEvents={plannedEvents}
         rejectedEventIds={rejectedEventIds}
+        viewer={viewer}
         onClose={() => setIdeasOpen(false)}
         onPropose={(eid) => {
           proposeIdea(eid, viewer.id);
           setIdeasOpen(false);
         }}
-        onDismiss={(eid) => dismissIdea(eid)}
+        onDismiss={(eid) => hideIdea(eid, viewer.id)}
       />
     </div>
   );

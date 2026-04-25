@@ -58,7 +58,8 @@ class Idea:
     score: int
     seen_at: str
     interested: list[str] = field(default_factory=list)  # user ids who clicked I'm in / proposed
-    dismissed: bool = False
+    hidden: list[str] = field(default_factory=list)  # user ids who clicked Hide (per-user)
+    dismissed: bool = False  # global removal (e.g. on book) — not the same as a per-user hide
 
 
 # ──────────────────────── store ────────────────────────
@@ -119,6 +120,7 @@ class GroupState:
                     score=int(d.get("score") or 0),
                     seen_at=d.get("seen_at") or self._now_iso(),
                     interested=list(d.get("interested") or []),
+                    hidden=list(d.get("hidden") or []),
                     dismissed=bool(d.get("dismissed") or False),
                 )
             )
@@ -148,6 +150,12 @@ class GroupState:
         if not event_id or not user_id:
             return
         kind = "interest_on" if on else "interest_off"
+        self._rerank(interactions=[{"event_id": event_id, "user_id": user_id, "kind": kind}])
+
+    def _mirror_hide(self, event_id: str | None, user_id: str | None, *, on: bool = True) -> None:
+        if not event_id or not user_id:
+            return
+        kind = "hide_on" if on else "hide_off"
         self._rerank(interactions=[{"event_id": event_id, "user_id": user_id, "kind": kind}])
 
     # ─── mutations ───
@@ -253,10 +261,20 @@ class GroupState:
             return p
 
     async def dismiss_idea(self, event_id: str) -> None:
+        """Global removal — used by the booking flow to expel an idea from
+        every viewer's panel once it lands in the Booked section. Per-user
+        Hide goes through `hide_idea` instead."""
         async with self.lock:
             for i in self.ideas:
                 if i.event.get("id") == event_id:
                     i.dismissed = True
+
+    async def hide_idea(self, event_id: str, user_id: str) -> None:
+        """Per-user Hide: this viewer no longer sees the idea, but it stays
+        visible to everyone else (lower in the rank, since each hider
+        subtracts from the composite score)."""
+        async with self.lock:
+            self._mirror_hide(event_id, user_id, on=True)
 
     async def propose_idea(
         self, event_id: str, proposer_user_id: str | None = None

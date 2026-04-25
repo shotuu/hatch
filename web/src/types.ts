@@ -50,7 +50,9 @@ export type Idea = {
   source: "reactive" | "proposal" | "alternate";
   score: number;
   seen_at: string;
-  dismissed: boolean;
+  interested?: string[]; // user ids who voted "I'm in" / proposed
+  hidden?: string[]; // user ids who clicked "Hide" — per-viewer filter
+  dismissed: boolean; // global removal (e.g. on book)
 };
 
 export type GroupSnapshot = {

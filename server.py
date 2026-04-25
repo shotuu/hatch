@@ -51,6 +51,11 @@ class DismissIdeaRequest(BaseModel):
     event_id: str
 
 
+class HideIdeaRequest(BaseModel):
+    event_id: str
+    user_id: str
+
+
 class ReactRequest(BaseModel):
     query: str
     parent_id: str | None = None
@@ -188,7 +193,18 @@ async def swap_alternate() -> dict:
 
 @app.post("/dismiss_idea")
 async def dismiss_idea(req: DismissIdeaRequest) -> dict:
+    """Global removal — used by the booking flow."""
     await store().dismiss_idea(req.event_id)
+    return {"ok": True}
+
+
+@app.post("/hide_idea")
+async def hide_idea(req: HideIdeaRequest) -> dict:
+    """Per-user Hide — only that viewer stops seeing the idea, and the
+    composite ranking score drops by one hide-vote (-10) for everyone else."""
+    if not any(u["id"] == req.user_id for u in matching.load_users()):
+        raise HTTPException(400, f"unknown user: {req.user_id}")
+    await store().hide_idea(req.event_id, req.user_id)
     return {"ok": True}
 
 

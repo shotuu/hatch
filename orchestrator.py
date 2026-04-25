@@ -98,6 +98,61 @@ def event_availability(event: dict) -> dict:
     }
 
 
+def _allow_mock_calendar() -> bool:
+    return os.environ.get("ALLOW_MOCK_CALENDAR", "0") == "1"
+
+
+def _parse_iso(value: str) -> datetime:
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    return datetime.fromisoformat(value)
+
+
+def _token_paths_for_users(users: list[dict]) -> dict[str, str]:
+    return {
+        u["id"]: u["google_token_path"]
+        for u in users
+        if (Path(__file__).parent / u["google_token_path"]).exists()
+    }
+
+
+def _calendar_busy(users: list[dict], start: datetime, end: datetime) -> dict:
+    token_paths = _token_paths_for_users(users)
+    missing = [u["id"] for u in users if u["id"] not in token_paths]
+    if missing:
+        if _allow_mock_calendar():
+            return _mock_busy(users, start, end)
+        raise RuntimeError(f"missing Google Calendar token(s): {', '.join(missing)}")
+
+    from lib.integrations import google_calendar
+
+    return google_calendar.freebusy(token_paths, start, end)
+
+
+def event_availability(event: dict) -> dict:
+    """Return whether every demo member is free for a proposed event."""
+    users = matching.load_users()
+    start = _parse_iso(event["datetime"])
+    end = start + timedelta(minutes=event["duration_minutes"])
+    try:
+        busy = _calendar_busy(users, start, end)
+    except Exception as e:
+        return {"ok": False, "available": False, "reason": str(e), "conflicts": []}
+
+    conflicts = []
+    for u in users:
+        uid = u["id"]
+        if any(b_start < end and b_end > start for b_start, b_end in busy.get(uid, [])):
+            conflicts.append({"id": uid, "name": u["name"]})
+    return {
+        "ok": True,
+        "available": not conflicts,
+        "conflicts": conflicts,
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+    }
+
+
 def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120) -> dict:
     # Optional LangGraph path (internal multi-agent orchestration).
     # This keeps the public FastAPI/UI contract identical, while letting you
@@ -128,9 +183,14 @@ def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120
         busy = _calendar_busy(users, now, horizon)
     except Exception as e:
         return {"ok": False, "reason": f"calendar availability failed: {e}"}
+    try:
+        busy = _calendar_busy(users, now, horizon)
+    except Exception as e:
+        return {"ok": False, "reason": f"calendar availability failed: {e}"}
 
     windows = matching.find_overlap(busy, now, horizon, min_minutes=min_window_minutes)
     if not windows:
+        return {"ok": False, "reason": "no shared calendar window found"}
         return {"ok": False, "reason": "no shared calendar window found"}
 
     ranked = matching.rank_events(events, users, windows)
@@ -220,6 +280,9 @@ async def propose_plan_remote(*, search_hours: int = 168, min_window_minutes: in
         ),
         CalendarResponse,
     )
+    if not cal.windows:
+        return {"ok": False, "reason": "no shared calendar window found"}
+    windows = cal.windows
     if not cal.windows:
         return {"ok": False, "reason": "no shared calendar window found"}
     windows = cal.windows

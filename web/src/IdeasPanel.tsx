@@ -1,13 +1,14 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import HatchLogo from "./HatchLogo";
-import type { Event, Idea } from "./types";
+import type { Event, Idea, User } from "./types";
 
 type Props = {
   open: boolean;
   ideas: Idea[];
   plannedEvents: Event[];
   rejectedEventIds: Set<string>;
+  viewer: User;
   onClose: () => void;
   onPropose: (eventId: string) => void;
   onDismiss: (eventId: string) => void;
@@ -30,6 +31,7 @@ export default function IdeasPanel({
   ideas,
   plannedEvents,
   rejectedEventIds,
+  viewer,
   onClose,
   onPropose,
   onDismiss,
@@ -37,8 +39,13 @@ export default function IdeasPanel({
   const plannedEventIds = new Set(plannedEvents.map((e) => e.id));
   const isTerminal = (idea: Idea) =>
     plannedEventIds.has(idea.event.id) || rejectedEventIds.has(idea.event.id);
-  const activeIdeas = ideas.filter((i) => !i.dismissed && !isTerminal(i));
-  const hiddenIdeas = ideas.filter((i) => i.dismissed && !isTerminal(i));
+  // "Hidden for me" means either a global dismiss OR this viewer is in the
+  // per-user `hidden` list. The same idea can still be visible (and ranked
+  // lower) for other viewers — that's the whole point of the new behavior.
+  const personallyHidden = (idea: Idea) =>
+    idea.dismissed || (idea.hidden ?? []).includes(viewer.id);
+  const activeIdeas = ideas.filter((i) => !personallyHidden(i) && !isTerminal(i));
+  const hiddenIdeas = ideas.filter((i) => personallyHidden(i) && !isTerminal(i));
   const [hiddenOpen, setHiddenOpen] = useState(false);
 
   useEffect(() => {
@@ -152,69 +159,16 @@ export default function IdeasPanel({
                 </div>
               )}
 
-              {activeIdeas.map((idea, i) => {
-                const e = idea.event;
-                const when = new Date(e.datetime);
-                return (
-                  <motion.div
-                    key={e.id}
-                    layout
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: 30 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="rounded-2xl bg-white ring-1 ring-ink-faint/40 p-3 shadow-bubble"
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <div className="text-[13px] font-semibold text-ink leading-tight flex-1">
-                        {e.title}
-                      </div>
-                      <span
-                        className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded ring-1 ${SOURCE_STYLE[idea.source]}`}
-                      >
-                        {SOURCE_LABEL[idea.source]}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-ink-muted">
-                      {e.location} ·{" "}
-                      {when.toLocaleDateString(undefined, {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })}{" "}
-                      ·{" "}
-                      <span className={e.price === 0 ? "text-mint font-semibold" : ""}>
-                        {e.price === 0 ? "Free" : `$${e.price}`}
-                      </span>
-                    </div>
-                    {idea.score > 0 && (
-                      <div className="mt-1 text-[10px] text-ink-subtle">
-                        {"●".repeat(Math.min(idea.score, 5))}
-                        <span className="text-ink-faint">
-                          {"●".repeat(Math.max(0, 5 - Math.min(idea.score, 5)))}
-                        </span>{" "}
-                        match
-                      </div>
-                    )}
-                    <div className="mt-2 flex gap-1.5">
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => onPropose(e.id)}
-                        className="flex-1 rounded-full bg-coral-500 text-white text-[12px] font-semibold py-1.5 hover:bg-coral-600 transition-colors"
-                      >
-                        Propose to group
-                      </motion.button>
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => onDismiss(e.id)}
-                        className="rounded-full bg-white ring-1 ring-ink-faint/50 text-[12px] font-medium py-1.5 px-3 text-ink-muted hover:text-ink"
-                      >
-                        Hide
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                );
-              })}
+              {activeIdeas.map((idea, i) => (
+                <IdeaCard
+                  key={idea.event.id}
+                  idea={idea}
+                  index={i}
+                  showHide
+                  onPropose={onPropose}
+                  onDismiss={onDismiss}
+                />
+              ))}
 
               {hiddenIdeas.length > 0 && (
                 <div className="pt-3 mt-2 border-t border-ink-faint/40">
@@ -247,29 +201,17 @@ export default function IdeasPanel({
                         transition={{ duration: 0.22 }}
                         className="overflow-hidden"
                       >
-                        <div className="pt-2 space-y-1.5">
-                          {hiddenIdeas.map((idea) => {
-                            const e = idea.event;
-                            const when = new Date(e.datetime);
-                            return (
-                              <div
-                                key={e.id}
-                                className="rounded-xl bg-cream-100/70 ring-1 ring-ink-faint/30 px-3 py-2 opacity-80"
-                              >
-                                <div className="text-[12.5px] font-medium text-ink-muted leading-tight truncate">
-                                  {e.title}
-                                </div>
-                                <div className="text-[10.5px] text-ink-subtle truncate mt-0.5">
-                                  {e.location} ·{" "}
-                                  {when.toLocaleDateString(undefined, {
-                                    weekday: "short",
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })}
+                        <div className="pt-2 space-y-2">
+                          {hiddenIdeas.map((idea) => (
+                            <IdeaCard
+                              key={idea.event.id}
+                              idea={idea}
+                              index={0}
+                              showHide={false}
+                              onPropose={onPropose}
+                              onDismiss={onDismiss}
+                            />
+                          ))}
                         </div>
                       </motion.div>
                     )}
@@ -281,5 +223,78 @@ export default function IdeasPanel({
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+type IdeaCardProps = {
+  idea: Idea;
+  index: number;
+  showHide: boolean;
+  onPropose: (eventId: string) => void;
+  onDismiss: (eventId: string) => void;
+};
+
+function IdeaCard({ idea, index, showHide, onPropose, onDismiss }: IdeaCardProps) {
+  const e = idea.event;
+  const when = new Date(e.datetime);
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: 30 }}
+      transition={{ delay: index * 0.04 }}
+      className="rounded-2xl bg-white ring-1 ring-ink-faint/40 p-3 shadow-bubble"
+    >
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="text-[13px] font-semibold text-ink leading-tight flex-1">
+          {e.title}
+        </div>
+        <span
+          className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded ring-1 ${SOURCE_STYLE[idea.source]}`}
+        >
+          {SOURCE_LABEL[idea.source]}
+        </span>
+      </div>
+      <div className="text-[11px] text-ink-muted">
+        {e.location} ·{" "}
+        {when.toLocaleDateString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        })}{" "}
+        ·{" "}
+        <span className={e.price === 0 ? "text-mint font-semibold" : ""}>
+          {e.price === 0 ? "Free" : `$${e.price}`}
+        </span>
+      </div>
+      {idea.score > 0 && (
+        <div className="mt-1 text-[10px] text-ink-subtle">
+          {"●".repeat(Math.min(idea.score, 5))}
+          <span className="text-ink-faint">
+            {"●".repeat(Math.max(0, 5 - Math.min(idea.score, 5)))}
+          </span>{" "}
+          match
+        </div>
+      )}
+      <div className="mt-2 flex gap-1.5">
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => onPropose(e.id)}
+          className="flex-1 rounded-full bg-coral-500 text-white text-[12px] font-semibold py-1.5 hover:bg-coral-600 transition-colors"
+        >
+          Propose to group
+        </motion.button>
+        {showHide && (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onDismiss(e.id)}
+            className="rounded-full bg-white ring-1 ring-ink-faint/50 text-[12px] font-medium py-1.5 px-3 text-ink-muted hover:text-ink"
+          >
+            Hide
+          </motion.button>
+        )}
+      </div>
+    </motion.div>
   );
 }
