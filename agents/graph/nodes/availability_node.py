@@ -12,6 +12,7 @@ remaining robust for the hackathon demo.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -32,22 +33,27 @@ def availability_node(state: GraphState) -> GraphState:
     token_paths = {
         u["id"]: u["google_token_path"]
         for u in users
-        if (Path(__file__).resolve().parents[2] / u["google_token_path"]).exists()
+        if (Path(__file__).resolve().parents[3] / u["google_token_path"]).exists()
     }
 
+    allow_mock = os.environ.get("ALLOW_MOCK_CALENDAR", "0") == "1"
     try:
-        if token_paths and len(token_paths) == len(users):
+        if len(token_paths) == len(users):
             from lib.integrations import google_calendar
 
             busy = google_calendar.freebusy(token_paths, now, horizon)
-        else:
+        elif allow_mock:
             busy = {u["id"]: [] for u in users}
-    except Exception:
+        else:
+            return {**state, "ok": False, "reason": "missing Google Calendar token"}
+    except Exception as e:
+        if not allow_mock:
+            return {**state, "ok": False, "reason": f"calendar availability failed: {e}"}
         busy = {u["id"]: [] for u in users}
 
     windows = matching.find_overlap(busy, now, horizon, min_minutes=min_window_minutes)
     if not windows:
-        windows = [matching.Window(now, horizon)]
+        return {**state, "ok": False, "reason": "no shared calendar window found"}
 
     return {
         **state,
@@ -55,4 +61,3 @@ def availability_node(state: GraphState) -> GraphState:
         "users": [{"id": u["id"], "name": u["name"]} for u in users],
         "window": {"start": windows[0].start.isoformat(), "end": windows[0].end.isoformat()},
     }
-
