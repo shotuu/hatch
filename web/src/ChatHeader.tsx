@@ -1,3 +1,5 @@
+import { motion } from "framer-motion";
+import HatchLogo from "./HatchLogo";
 import type { User } from "./types";
 
 type Props = {
@@ -7,44 +9,52 @@ type Props = {
 };
 
 export default function ChatHeader({ tripName, members, expiryDays }: Props) {
-  const expiryColor =
+  const expiryStyle =
     expiryDays <= 7
-      ? "bg-rose-500/20 text-rose-200 ring-rose-400/40"
+      ? "bg-coral-100 text-coral-700 ring-coral-200"
       : expiryDays <= 14
-      ? "bg-amber-500/20 text-amber-200 ring-amber-400/40"
-      : "bg-emerald-500/20 text-emerald-200 ring-emerald-400/40";
+      ? "bg-yolk/20 text-coral-700 ring-yolk/40"
+      : "bg-mint/15 text-mint-700 ring-mint/30 text-[#2F8F5A]";
 
   return (
-    <header className="px-4 py-3 border-b border-white/10 bg-neutral-950/95 backdrop-blur sticky top-0 z-10">
+    <header className="px-4 pt-2 pb-3 border-b border-ink-faint/40 bg-cream-50/95 backdrop-blur sticky top-0 z-10">
       <div className="flex items-center justify-between">
-        <button className="text-indigo-400 text-[15px] font-medium">‹</button>
+        <button className="text-coral-600 text-[15px] font-medium px-1 -ml-1">
+          ‹
+        </button>
 
         <div className="flex flex-col items-center">
           <div className="flex -space-x-2 mb-1">
             {members.map((m) => (
               <div
                 key={m.id}
-                className="w-7 h-7 rounded-full ring-2 ring-neutral-950 flex items-center justify-center text-[11px] font-semibold text-black"
+                className="w-7 h-7 rounded-full ring-2 ring-cream-50 flex items-center justify-center text-[11px] font-semibold text-white shadow-bubble"
                 style={{ background: m.color }}
               >
                 {m.name[0]}
               </div>
             ))}
           </div>
-          <div className="text-[13px] font-semibold text-white">
-            {tripName}
-          </div>
-          <div className="text-[10px] text-neutral-500">
+          <div className="text-[14px] font-semibold text-ink">{tripName}</div>
+          <div className="text-[10px] text-ink-subtle">
             {members.map((m) => m.name).join(" · ")}
           </div>
         </div>
 
-        <div
-          className={`text-[10px] font-semibold px-2 py-1 rounded-full ring-1 ${expiryColor}`}
-        >
-          {expiryDays}d left
+        <div className="flex items-center gap-1.5">
+          <HatchLogo size={18} />
         </div>
       </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15, duration: 0.4 }}
+        className={`mt-2 mx-auto w-fit text-[10.5px] font-semibold px-2.5 py-1 rounded-full ring-1 ${expiryStyle}`}
+      >
+        {expiryDays <= 7 ? "🥚 " : ""}
+        {expiryDays} day{expiryDays === 1 ? "" : "s"} left to plan something
+      </motion.div>
     </header>
   );
 }

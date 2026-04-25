@@ -1,3 +1,5 @@
+import { motion } from "framer-motion";
+
 type Props = {
   onReactiveDemo: () => void;
   onProactiveDemo: () => void;
@@ -12,33 +14,51 @@ export default function DemoControls({
   busy,
 }: Props) {
   return (
-    <div className="px-3 pt-2 pb-1 border-t border-white/5 bg-neutral-950">
-      <div className="text-[9px] uppercase tracking-wider text-neutral-600 mb-1.5 px-1">
+    <div className="px-3 pt-2 pb-2 border-t border-ink-faint/40 bg-cream-100">
+      <div className="text-[9px] uppercase tracking-wider text-ink-subtle mb-1.5 px-1 flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-coral-500 animate-pulse" />
         Demo controls
       </div>
       <div className="grid grid-cols-3 gap-1.5">
-        <button
-          onClick={onReactiveDemo}
-          disabled={busy}
-          className="rounded-lg bg-white/5 ring-1 ring-white/10 text-[10px] py-2 text-neutral-200 disabled:opacity-40 active:scale-95 transition"
-        >
+        <Btn onClick={onReactiveDemo} busy={busy} variant="ghost">
           Maya: Lakers msg
-        </button>
-        <button
-          onClick={onProactiveDemo}
-          disabled={busy}
-          className="rounded-lg bg-indigo-500/30 ring-1 ring-indigo-400/40 text-[10px] py-2 text-indigo-100 disabled:opacity-40 active:scale-95 transition font-semibold"
-        >
+        </Btn>
+        <Btn onClick={onProactiveDemo} busy={busy} variant="primary">
           Trigger silence
-        </button>
-        <button
-          onClick={onReset}
-          disabled={busy}
-          className="rounded-lg bg-white/5 ring-1 ring-white/10 text-[10px] py-2 text-neutral-400 disabled:opacity-40 active:scale-95 transition"
-        >
+        </Btn>
+        <Btn onClick={onReset} busy={busy} variant="ghost">
           Reset
-        </button>
+        </Btn>
       </div>
     </div>
+  );
+}
+
+function Btn({
+  children,
+  onClick,
+  busy,
+  variant,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  busy: boolean;
+  variant: "primary" | "ghost";
+}) {
+  const base =
+    "rounded-lg text-[10px] py-2 font-semibold disabled:opacity-40 transition-colors";
+  const cls =
+    variant === "primary"
+      ? `${base} bg-coral-500 text-white hover:bg-coral-600`
+      : `${base} bg-white ring-1 ring-ink-faint/50 text-ink-muted hover:text-ink`;
+  return (
+    <motion.button
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      disabled={busy}
+      className={cls}
+    >
+      {children}
+    </motion.button>
   );
 }

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+
 from openai import OpenAI
 
 ASI_BASE_URL = "https://api.asi1.ai/v1"
@@ -16,7 +17,9 @@ DEFAULT_MODEL = "asi1-mini"
 def client() -> OpenAI:
     api_key = os.environ.get("ASI_API_KEY")
     if not api_key:
-        raise RuntimeError("ASI_API_KEY not set — copy .env.example to .env and fill it in")
+        raise RuntimeError(
+            "ASI_API_KEY not set — copy .env.example to .env and fill it in"
+        )
     return OpenAI(api_key=api_key, base_url=ASI_BASE_URL)
 
 

@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 type Props = {
@@ -7,17 +8,17 @@ type Props = {
 
 export default function BookingChecklist({ userNames, onDone }: Props) {
   const steps = [
-    "Reserved spot",
+    "Reserved your spot",
     ...userNames.map((n) => `Added to ${n}'s calendar`),
   ];
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
     if (current >= steps.length) {
-      const t = setTimeout(onDone, 600);
+      const t = setTimeout(onDone, 500);
       return () => clearTimeout(t);
     }
-    const t = setTimeout(() => setCurrent((c) => c + 1), 450);
+    const t = setTimeout(() => setCurrent((c) => c + 1), 420);
     return () => clearTimeout(t);
   }, [current, steps.length, onDone]);
 
@@ -27,29 +28,28 @@ export default function BookingChecklist({ userNames, onDone }: Props) {
         const done = i < current;
         const active = i === current;
         return (
-          <li
+          <motion.li
             key={s}
-            className={`flex items-center gap-2 text-[13px] transition-all duration-300 ${
-              done
-                ? "text-emerald-300"
-                : active
-                ? "text-neutral-100"
-                : "text-neutral-600"
+            initial={{ opacity: 0, x: -4 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className={`flex items-center gap-2 text-[13px] transition-colors duration-300 ${
+              done ? "text-mint" : active ? "text-ink" : "text-ink-subtle"
             }`}
           >
             <span
               className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] transition-all ${
                 done
-                  ? "bg-emerald-400/20 ring-1 ring-emerald-400/60"
+                  ? "bg-mint text-white animate-tick-pop"
                   : active
-                  ? "bg-white/10 ring-1 ring-white/30 animate-pulse"
-                  : "bg-white/5 ring-1 ring-white/10"
+                  ? "bg-coral-100 ring-1 ring-coral-300 animate-pulse"
+                  : "bg-cream-200 ring-1 ring-ink-faint/40"
               }`}
             >
               {done ? "✓" : ""}
             </span>
             {s}
-          </li>
+          </motion.li>
         );
       })}
     </ul>

@@ -36,8 +36,8 @@ def propose_plan(*, search_hours: int = 168, min_window_minutes: int = 120) -> d
 
     try:
         if token_paths and len(token_paths) == len(users):
-            from lib import calendar_client
-            busy = calendar_client.freebusy(token_paths, now, horizon)
+            from lib.integrations import google_calendar
+            busy = google_calendar.freebusy(token_paths, now, horizon)
         else:
             busy = _mock_busy(users, now, horizon)
     except Exception:
@@ -71,7 +71,7 @@ def book_plan(event_id: str) -> dict:
     if not event:
         return {"ok": False, "reason": "unknown event"}
 
-    # TODO(book): call lib.calendar_client.insert_event for each user.
+    # TODO(book): call lib.integrations.google_calendar.insert_event for each user.
     return {
         "ok": True,
         "event_id": event_id,

@@ -6,7 +6,7 @@
 
 ## 1. Product
 
-**Name (working):** Plans (alternates: Hatch, Pullup, Mosey — final name TBD, check domain availability before committing)
+**Name:** Hatch — "plans, hatched."
 
 **One-liner:** A group chat that expires unless you actually use it, with an AI agent that makes sure you do.
 
@@ -48,7 +48,7 @@
 | LLM (fallback, harder tasks) | Claude / GPT | only if ASI:One insufficient |
 | Calendar | Google Calendar API | OAuth, `google-auth-oauthlib` + `google-api-python-client` |
 | Events data | **Curated JSON** (~50 real LA events, hand-picked) | NO scraper, ever |
-| Frontend | **Web app inside a phone-shaped frame** | Vite + React + Tailwind. Max-width ~390px. NOT a native mobile app. |
+| Frontend | **Web app inside a phone-shaped frame** | Vite + React + Tailwind + Framer Motion. Max-width ~390px. **Light mode**, warm Hatch palette (cream + coral). NOT a native mobile app. |
 | Hosting | Agents on Agentverse (Mailbox); frontend on Vercel | |
 | DB | None (JSON files on disk) | |
 | Voice / ElevenLabs | **NOT this weekend.** | Parked post-hackathon. Voice messages and call-listening are parked too. |
@@ -177,7 +177,7 @@ Every click must be rehearsed 10+ times. Driver should do it blindfolded by hour
 
 ## 10. Open questions
 
-- Final app name (check domain availability before committing — `cue.app` is taken by a direct competitor, avoid; `hatch`, `pullup`, `mosey` are candidates).
+- Domain registration for `hatch` — coordinate with the GoDaddy MLH track.
 - Role split among 4 teammates (suggested: one per Track A/B/C/D for hour 0–4, then converge).
 - Hosted Agentverse agents vs. locally-run agents for the live demo (local is more reliable for demo but less impressive for the Agentverse prize — register at least 3 on hosted Agentverse for the prize check).
 - Exact event corpus sources (current plan: hand-curated from Eventbrite + UCLA events + a few LA venues).

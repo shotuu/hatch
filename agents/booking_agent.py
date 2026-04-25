@@ -4,16 +4,17 @@ On success: resets the group's expiry timer and posts the "Done" message.
 """
 from __future__ import annotations
 
-import os
 from dotenv import load_dotenv
 from uagents import Agent, Protocol
 from uagents_core.contrib.protocols.chat import chat_protocol_spec
 
+from lib.integrations import agentverse
+
 load_dotenv()
 
 agent = Agent(
-    name="plans-booking",
-    seed=os.environ.get("BOOKING_AGENT_SEED", "plans-booking-seed-change-me"),
+    name=agentverse.BOOKING.name,
+    seed=agentverse.BOOKING.seed,
     mailbox=True,
     publish_agent_details=True,
 )

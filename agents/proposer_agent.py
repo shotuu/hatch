@@ -25,15 +25,13 @@ from uagents_core.contrib.protocols.chat import (
     chat_protocol_spec,
 )
 
-from lib import asi_client
+from lib.integrations import agentverse, asi_one
 
 load_dotenv()
 
-SEED = os.environ.get("PROPOSER_AGENT_SEED", "plans-proposer-seed-change-me")
-
 agent = Agent(
-    name="plans-proposer",
-    seed=SEED,
+    name=agentverse.PROPOSER.name,
+    seed=agentverse.PROPOSER.seed,
     mailbox=True,
     publish_agent_details=True,
 )
@@ -41,10 +39,10 @@ agent = Agent(
 chat_proto = Protocol(spec=chat_protocol_spec)
 
 SYSTEM_PROMPT = (
-    "You are the Plans proposer agent. You live inside a friend group chat. "
+    "You are Hatch — the proposer agent that lives inside a friend group chat. "
     "The group has been silent for weeks and the chat is about to expire. "
     "Given a free-time window and a candidate event, write ONE short message "
-    "(max 2 sentences) in a casual friend voice that:\n"
+    "(max 2 sentences) in a warm, casual friend voice that:\n"
     "1. names the time window,\n"
     "2. proposes the event,\n"
     "3. ends with a soft CTA like 'want me to set it up?'\n"
@@ -58,7 +56,7 @@ def compose_proposal(window_text: str, event: dict) -> str:
         f"Event: {event['title']} at {event['location']}, "
         f"{event['datetime']}, ${event['price']}."
     )
-    return asi_client.chat(SYSTEM_PROMPT, user, temperature=0.6, max_tokens=160)
+    return asi_one.chat(SYSTEM_PROMPT, user, temperature=0.6, max_tokens=160)
 
 
 @chat_proto.on_message(ChatMessage)

@@ -9,5 +9,26 @@ body,
 }
 
 body {
-  @apply bg-neutral-950 text-neutral-100;
+  @apply bg-cream-100 text-ink antialiased;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* hide scrollbar — feels native */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* subtle grain on cream backgrounds for warmth */
+.cream-grain {
+  background-image: radial-gradient(
+    rgba(120, 80, 40, 0.025) 1px,
+    transparent 1px
+  );
+  background-size: 6px 6px;
 }

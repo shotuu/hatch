@@ -4,16 +4,17 @@ Absorbs the old Interest agent (interests are a JSON lookup, not a pipeline step
 """
 from __future__ import annotations
 
-import os
 from dotenv import load_dotenv
 from uagents import Agent, Protocol
 from uagents_core.contrib.protocols.chat import chat_protocol_spec
 
+from lib.integrations import agentverse
+
 load_dotenv()
 
 agent = Agent(
-    name="plans-event",
-    seed=os.environ.get("EVENT_AGENT_SEED", "plans-event-seed-change-me"),
+    name=agentverse.EVENT.name,
+    seed=agentverse.EVENT.seed,
     mailbox=True,
     publish_agent_details=True,
 )

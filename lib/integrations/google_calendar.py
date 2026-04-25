@@ -1,4 +1,4 @@
-"""Google Calendar client — OAuth, freebusy, event insert.
+"""Google Calendar — OAuth, freebusy, event insert.
 
 Docs:
   - https://developers.google.com/calendar/api/v3/reference/freebusy/query
@@ -9,11 +9,11 @@ Setup:
      Add all 4 teammates as test users.
   2. Create OAuth client ID (Desktop app is easiest for hackathon).
   3. Fill GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET in .env.
-  4. Run `python -m lib.calendar_client authorize <user_id>` once per teammate.
+  4. Run `python -m lib.integrations.google_calendar authorize <user_id>`
+     once per teammate.
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
 from datetime import datetime
@@ -25,7 +25,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def _client_config() -> dict:
@@ -62,7 +62,12 @@ def _credentials(token_path: str) -> Credentials:
 
 
 def _service(token_path: str):
-    return build("calendar", "v3", credentials=_credentials(token_path), cache_discovery=False)
+    return build(
+        "calendar",
+        "v3",
+        credentials=_credentials(token_path),
+        cache_discovery=False,
+    )
 
 
 def freebusy(
@@ -70,7 +75,6 @@ def freebusy(
     time_min: datetime,
     time_max: datetime,
 ) -> dict[str, list[tuple[datetime, datetime]]]:
-    """Returns {user_id: [(busy_start, busy_end), ...]}."""
     out: dict[str, list[tuple[datetime, datetime]]] = {}
     for user_id, token_path in token_paths_by_user.items():
         svc = _service(token_path)
@@ -113,4 +117,4 @@ if __name__ == "__main__":
         path = authorize(sys.argv[2])
         print(f"Saved token → {path}")
     else:
-        print("usage: python -m lib.calendar_client authorize <user_id>")
+        print("usage: python -m lib.integrations.google_calendar authorize <user_id>")
