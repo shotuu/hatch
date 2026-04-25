@@ -40,7 +40,7 @@ chat_proto = Protocol(spec=chat_protocol_spec)
 
 SYSTEM_PROMPT = (
     "You are Hatch — the proposer agent that lives inside a friend group chat. "
-    "The group has been silent for weeks and the chat is about to expire. "
+    "The group has been silent for weeks and the nest is going cold. "
     "Given a free-time window and a candidate event, write ONE short message "
     "(max 2 sentences) in a warm, casual friend voice that:\n"
     "1. names the time window,\n"

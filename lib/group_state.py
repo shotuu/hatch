@@ -66,7 +66,10 @@ class GroupState:
         self.lock = asyncio.Lock()
         self.messages: list[ChatMessage] = []
         self.current_proposal: Proposal | None = None
-        self.expiry_days: int = 6
+        # nest_warmth: 0–30. Decays as the group goes silent, restores to 30
+        # when a plan books. The carrot version of an "expiry countdown" —
+        # the chat never dies, but its nest can go cold.
+        self.nest_warmth: int = 6
         self.last_booking: dict | None = None
         self.ideas: list[Idea] = []  # ordered by score desc
 
@@ -76,7 +79,8 @@ class GroupState:
         return {
             "messages": [asdict(m) for m in self.messages],
             "current_proposal": asdict(self.current_proposal) if self.current_proposal else None,
-            "expiry_days": self.expiry_days,
+            "nest_warmth": self.nest_warmth,
+            "nest_max": 30,
             "last_booking": self.last_booking,
             "ideas": [asdict(i) for i in self.ideas if not i.dismissed],
             "users": [{"id": u["id"], "name": u["name"], "color": u["avatar_color"]} for u in matching.load_users()],
@@ -173,7 +177,7 @@ class GroupState:
                 self.current_proposal.status = "booked"
                 self.current_proposal.booking = result
             self.last_booking = result
-            self.expiry_days = 30  # reset
+            self.nest_warmth = 30  # nest fully restored
 
     async def skip_proposal(self) -> None:
         async with self.lock:
@@ -235,7 +239,7 @@ class GroupState:
         async with self.lock:
             self.messages = _seed_messages()
             self.current_proposal = None
-            self.expiry_days = 6
+            self.nest_warmth = 6
             self.last_booking = None
             self.ideas = []
 

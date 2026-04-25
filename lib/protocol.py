@@ -85,5 +85,5 @@ class BookingResponse(BaseModel):
     type: Literal["booking_response"] = "booking_response"
     ok: bool
     calendars_written: int = 0
-    expiry_reset_days: int = 30
+    nest_restore: int = 30  # warmth value the nest is restored to
     error: str | None = None

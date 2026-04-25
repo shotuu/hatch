@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import HatchLogo from "./HatchLogo";
 import type { Idea } from "./types";
 
@@ -29,6 +30,14 @@ export default function IdeasPanel({
   onPropose,
   onDismiss,
 }: Props) {
+  const activeIdeas = ideas.filter((i) => !i.dismissed);
+  const hiddenIdeas = ideas.filter((i) => i.dismissed);
+  const [hiddenOpen, setHiddenOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) setHiddenOpen(false);
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -71,7 +80,7 @@ export default function IdeasPanel({
             </header>
 
             <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-2">
-              {ideas.length === 0 && (
+              {activeIdeas.length === 0 && hiddenIdeas.length === 0 && (
                 <div className="text-center py-12 px-6">
                   <div className="text-[13px] text-ink-muted">
                     Nothing yet. Hatch will surface anything y'all bring up here.
@@ -79,7 +88,7 @@ export default function IdeasPanel({
                 </div>
               )}
 
-              {ideas.map((idea, i) => {
+              {activeIdeas.map((idea, i) => {
                 const e = idea.event;
                 const when = new Date(e.datetime);
                 return (
@@ -142,6 +151,67 @@ export default function IdeasPanel({
                   </motion.div>
                 );
               })}
+
+              {hiddenIdeas.length > 0 && (
+                <div className="pt-3 mt-2 border-t border-ink-faint/40">
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setHiddenOpen((v) => !v)}
+                    className="w-full flex items-center justify-between text-[11px] uppercase tracking-wider font-semibold text-ink-muted px-1 py-1"
+                    aria-expanded={hiddenOpen}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <motion.span
+                        animate={{ rotate: hiddenOpen ? 90 : 0 }}
+                        transition={{ type: "spring", stiffness: 320, damping: 24 }}
+                        className="inline-block leading-none text-[10px]"
+                      >
+                        ▸
+                      </motion.span>
+                      Hidden
+                    </span>
+                    <span className="text-ink-subtle">{hiddenIdeas.length}</span>
+                  </motion.button>
+
+                  <AnimatePresence initial={false}>
+                    {hiddenOpen && (
+                      <motion.div
+                        key="hidden-body"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.22 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="pt-2 space-y-1.5">
+                          {hiddenIdeas.map((idea) => {
+                            const e = idea.event;
+                            const when = new Date(e.datetime);
+                            return (
+                              <div
+                                key={e.id}
+                                className="rounded-xl bg-cream-100/70 ring-1 ring-ink-faint/30 px-3 py-2 opacity-80"
+                              >
+                                <div className="text-[12.5px] font-medium text-ink-muted leading-tight truncate">
+                                  {e.title}
+                                </div>
+                                <div className="text-[10.5px] text-ink-subtle truncate mt-0.5">
+                                  {e.location} ·{" "}
+                                  {when.toLocaleDateString(undefined, {
+                                    weekday: "short",
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
           </motion.aside>
         </>

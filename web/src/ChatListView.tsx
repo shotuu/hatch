@@ -75,6 +75,9 @@ export default function ChatListView({ snapshot, onOpenChat }: Props) {
     ? `Hatch · ${current_proposal.event.title}`
     : lastUserMsg?.text || "miss y'all 😭";
   const unread = !!current_proposal && current_proposal.status === "pending";
+  const dummyChats =
+    DUMMY_CHATS_BY_USER[viewer.id] || FALLBACK_DUMMY_CHATS;
+  const totalChats = dummyChats.length + 1;
 
   return (
     <div className="flex flex-col h-full bg-cream-50">
@@ -82,6 +85,8 @@ export default function ChatListView({ snapshot, onOpenChat }: Props) {
         <div className="flex items-center justify-center gap-2">
           <HatchLogo size={28} />
           <div className="text-[22px] font-semibold tracking-tight text-coral-700 leading-none">
+          <HatchLogo size={30} />
+          <div className="text-[24px] font-semibold tracking-tight text-coral-700 leading-none">
             Hatch
           </div>
         </div>
@@ -92,6 +97,10 @@ export default function ChatListView({ snapshot, onOpenChat }: Props) {
           <div className="text-[10px] text-ink-subtle">
             {DUMMY_CHATS.length + 1} chats
           </div>
+          <div className="text-[17px] font-semibold text-ink leading-tight">
+            Messages
+          </div>
+          <div className="text-[10px] text-ink-subtle">{totalChats} chats</div>
         </div>
       </header>
 
@@ -106,6 +115,11 @@ export default function ChatListView({ snapshot, onOpenChat }: Props) {
           onClick={onOpenChat}
         />
         {DUMMY_CHATS.map((c) => (
+          avatarCluster={users}
+          unread={unread}
+          onClick={onOpenChat}
+        />
+        {dummyChats.map((c) => (
           <ChatRow
             key={c.id}
             name={c.name}
@@ -113,6 +127,7 @@ export default function ChatListView({ snapshot, onOpenChat }: Props) {
             ts={c.ts}
             members={c.members as User[]}
             warmth={c.warmth}
+            avatarCluster={c.members as User[]}
             onClick={() => {}}
           />
         ))}
@@ -127,6 +142,7 @@ type RowProps = {
   ts: string;
   members: User[];
   warmth: number;
+  avatarCluster: User[];
   unread?: boolean;
   onClick: () => void;
 };
@@ -166,5 +182,99 @@ function ChatRow({ name, previewText, ts, members, warmth, unread, onClick }: Ro
         <NestEgg warmth={warmth} />
       </div>
     </motion.div>
+function ChatRow({
+  name,
+  previewText,
+  ts,
+  avatarCluster,
+  unread,
+  onClick,
+}: RowProps) {
+  const [membersOpen, setMembersOpen] = useState(false);
+  const visible = avatarCluster.slice(0, 3);
+  const overflowCount = Math.max(0, avatarCluster.length - 3);
+  const hasOverflow = overflowCount > 0;
+
+  return (
+    <div className="border-b border-ink-faint/30">
+      <motion.div
+        whileTap={{ scale: 0.98 }}
+        onClick={onClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") onClick();
+        }}
+        className="w-full px-4 py-3 flex items-start gap-3 hover:bg-cream-100/60 transition-colors cursor-pointer focus:outline-none focus-visible:bg-cream-100"
+      >
+        <div className="flex -space-x-2 shrink-0 mt-0.5">
+          {visible.map((u) => (
+            <div
+              key={u.id}
+              className="w-8 h-8 rounded-full ring-2 ring-cream-50 flex items-center justify-center text-[11px] font-semibold text-white"
+              style={{ background: u.color }}
+            >
+              {u.name[0]}
+            </div>
+          ))}
+          {hasOverflow && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMembersOpen((v) => !v);
+              }}
+              aria-expanded={membersOpen}
+              aria-label={
+                membersOpen ? "Hide all members" : `Show all ${avatarCluster.length} members`
+              }
+              className="w-8 h-8 rounded-full ring-2 ring-cream-50 bg-cream-200 flex items-center justify-center text-[10px] font-semibold text-ink-muted hover:bg-cream-300 hover:text-ink transition-colors"
+            >
+              +{overflowCount}
+            </motion.button>
+          )}
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-[15px] font-semibold text-ink truncate">{name}</div>
+            <div className="text-[11px] text-ink-subtle shrink-0">{ts}</div>
+          </div>
+          <div className="text-[13px] text-ink-muted truncate mt-0.5">{previewText}</div>
+        </div>
+        {unread && (
+          <div className="w-2.5 h-2.5 rounded-full bg-coral-500 mt-2 shrink-0" />
+        )}
+      </motion.div>
+
+      <AnimatePresence initial={false}>
+        {membersOpen && (
+          <motion.div
+            key="members"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-3 pt-0.5 flex flex-wrap gap-1.5">
+              {avatarCluster.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center gap-1.5 rounded-full bg-white ring-1 ring-ink-faint/40 pl-0.5 pr-3 py-0.5 shadow-bubble"
+                >
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold text-white"
+                    style={{ background: u.color }}
+                  >
+                    {u.name[0]}
+                  </div>
+                  <span className="text-[11.5px] text-ink leading-none">{u.name}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

@@ -18,16 +18,33 @@ type Props = {
 
 export default function ChatView({ viewer, actions, onBack }: Props) {
   const { snapshot, busy, send, approve, dismissProposal, swapAlternate, proposeIdea, dismissIdea } = actions;
-  const { messages, current_proposal, expiry_days, users, ideas } = snapshot;
+  const { messages, current_proposal, nest_warmth, nest_max, users, ideas } = snapshot;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [ideasOpen, setIdeasOpen] = useState(false);
+  const [proposalCollapsed, setProposalCollapsed] = useState(false);
+  const [conversationStart] = useState(() => formatPTNow());
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
+    const scroller = scrollRef.current;
+    const content = contentRef.current;
+    if (!scroller || !content) return;
+    scroller.scrollTop = scroller.scrollHeight;
+    let prevHeight = content.offsetHeight;
+    const ro = new ResizeObserver(() => {
+      const next = content.offsetHeight;
+      if (next > prevHeight) {
+        scroller.scrollTop = scroller.scrollHeight;
+      }
+      prevHeight = next;
     });
-  }, [messages.length, current_proposal?.id, current_proposal?.status]);
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (current_proposal?.id) setProposalCollapsed(false);
+  }, [current_proposal?.id]);
 
   const usersById = Object.fromEntries(users.map((u) => [u.id, u]));
 
@@ -36,57 +53,76 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
       <ChatHeader
         tripName="LA Friends"
         members={users}
-        expiryDays={expiry_days}
+        nestWarmth={nest_warmth}
+        nestMax={nest_max}
         onOpenIdeas={() => setIdeasOpen(true)}
         ideasCount={ideas.length}
         onBack={onBack}
       />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto py-2 no-scrollbar">
+      <AnimatePresence>
+        {current_proposal && current_proposal.status !== "skipped" && (
+          <AgentMessage
+            key={current_proposal.id}
+            proposal={current_proposal}
+            viewer={viewer}
+            members={users}
+            collapsed={proposalCollapsed}
+            onToggleCollapse={() => setProposalCollapsed((v) => !v)}
+            onApprove={() => approve(viewer.id)}
+            onSkip={() => dismissProposal()}
+            onSwap={() => swapAlternate()}
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="flex-1 relative">
+        <div
+          ref={scrollRef}
+          className="absolute inset-0 overflow-y-auto py-2 no-scrollbar scroll-smooth [overflow-anchor:none]"
+        >
+          <div ref={contentRef}>
+            <div className="text-center text-[11px] text-ink-subtle font-medium py-2">
+              {conversationStart}
+            </div>
+            <AnimatePresence initial={false}>
+              {messages.map((m) => {
+                if (m.kind === "user") {
+                  const author = (m.author_id && usersById[m.author_id]) || {
+                    id: m.author_id || "?",
+                    name: "?",
+                    color: "#888",
+                  };
+                  return (
+                    <MessageBubble
+                      key={m.id}
+                      author={author}
+                      text={m.text || ""}
+                      ts={m.ts}
+                      isMe={m.author_id === viewer.id}
+                    />
+                  );
+                }
+                return (
+                  <ReactiveReply
+                    key={m.id}
+                    query={m.query || ""}
+                    matches={m.matches || []}
+                    onProposeToGroup={(eid) => proposeIdea(eid)}
+                  />
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        </div>
+
         <AnimatePresence>
-          {current_proposal && current_proposal.status !== "skipped" && (
-            <AgentMessage
-              key={current_proposal.id}
-              proposal={current_proposal}
-              viewer={viewer}
-              members={users}
-              onApprove={() => approve(viewer.id)}
-              onSkip={() => dismissProposal()}
-              onSwap={() => swapAlternate()}
-            />
+          {busy && (
+            <div className="absolute bottom-1 left-0 right-0 z-10 pointer-events-none">
+              <TypingDots />
+            </div>
           )}
         </AnimatePresence>
-
-        <AnimatePresence initial={false}>
-          {messages.map((m) => {
-            if (m.kind === "user") {
-              const author = (m.author_id && usersById[m.author_id]) || {
-                id: m.author_id || "?",
-                name: "?",
-                color: "#888",
-              };
-              return (
-                <MessageBubble
-                  key={m.id}
-                  author={author}
-                  text={m.text || ""}
-                  ts={m.ts}
-                  isMe={m.author_id === viewer.id}
-                />
-              );
-            }
-            return (
-              <ReactiveReply
-                key={m.id}
-                query={m.query || ""}
-                matches={m.matches || []}
-                onProposeToGroup={(eid) => proposeIdea(eid)}
-              />
-            );
-          })}
-        </AnimatePresence>
-
-        <AnimatePresence>{busy && <TypingDots />}</AnimatePresence>
       </div>
 
       <MessageInput
@@ -136,4 +172,20 @@ function Dot({ delay }: { delay: string }) {
       style={{ animationDelay: delay }}
     />
   );
+}
+
+function formatPTNow() {
+  const now = new Date();
+  const date = now.toLocaleDateString("en-US", {
+    timeZone: "America/Los_Angeles",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const time = now.toLocaleTimeString("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${date} · ${time}`;
 }

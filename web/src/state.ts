@@ -7,7 +7,8 @@ const POLL_MS = 1000;
 const EMPTY: GroupSnapshot = {
   messages: [],
   current_proposal: null,
-  expiry_days: 6,
+  nest_warmth: 6,
+  nest_max: 30,
   last_booking: null,
   ideas: [],
   users: [],
