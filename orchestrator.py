@@ -44,6 +44,26 @@ def _mock_busy(users: list[dict], start: datetime, end: datetime) -> dict:
 
 
 def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120) -> dict:
+    # Optional LangGraph path (internal multi-agent orchestration).
+    # This keeps the public FastAPI/UI contract identical, while letting you
+    # truthfully say the pipeline is orchestrated via LangGraph.
+    if os.environ.get("USE_LANGGRAPH", "0") == "1":
+        from agents.graph.workflow import proposal_graph
+
+        s = proposal_graph().invoke(
+            {"search_hours": search_hours, "min_window_minutes": min_window_minutes}
+        )
+        if not s.get("ok"):
+            return {"ok": False, "reason": s.get("reason", "langgraph failed")}
+        return {
+            "ok": True,
+            "window": s["window"],
+            "event": s["event"],
+            "alternates": s.get("alternates", []),
+            "users": s.get("users", []),
+            "proposal_text": s.get("proposal_text"),
+        }
+
     users = matching.load_users()
     events = matching.load_events()
     now = datetime.now(timezone.utc)
@@ -211,3 +231,33 @@ async def book_plan(event_id: str) -> dict:
         except Exception as e:
             print(f"[orchestrator] remote book failed, falling back: {e}")
     return book_plan_local(event_id)
+
+
+# ──────────────────────── Reactive (per-message) ────────────────────────
+
+
+def react_to_message(text: str, parent_id: str | None = None) -> dict:
+    """Run the reactive LangGraph pipeline.
+
+    Pipeline (in agents/graph/workflow.py): trigger → event_synth → format.
+    All reactive logic lives inside the nodes; there is no non-graph fallback.
+
+    Returns:
+        {
+          "should_react": bool,
+          "matches": [...],            # event candidates the UI already renders
+          "reply": {"headline", "options"},  # UI-stable envelope (Phase 3+)
+        }
+    """
+    from agents.graph.workflow import reactive_graph
+
+    try:
+        s = reactive_graph().invoke({"text": text, "parent_id": parent_id or ""})
+        return {
+            "should_react": bool(s.get("should_react")),
+            "matches": s.get("matches") or [],
+            "reply": s.get("reply") or {"headline": "", "options": []},
+        }
+    except Exception as e:
+        print(f"[orchestrator] reactive graph failed: {e}")
+        return {"should_react": False, "matches": [], "reply": {"headline": "", "options": []}}

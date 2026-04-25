@@ -52,6 +52,12 @@ load_dotenv()
 agent = Agent(
     name=os.environ.get("HATCH_UAGENT_NAME", "hatch-main"),
     seed=os.environ.get("AGENT_SEED_PHRASE", "hatch-main-dev-seed-change-me"),
+    # Optional: "testnet" makes Almanac contract registration easier during dev
+    # (you can fund via faucet instead of mainnet tokens).
+    network=os.environ.get("HATCH_NETWORK", "mainnet"),
+    # The Local Agent Inspector expects a local HTTP endpoint it can probe.
+    # uAgents receives inbound envelopes at POST /submit by default.
+    port=int(os.environ.get("HATCH_UAGENT_PORT", "8000")),
     mailbox=True,
     publish_agent_details=True,
 )
@@ -126,5 +132,9 @@ agent.include(chat_proto, publish_manifest=True)
 if __name__ == "__main__":
     # Print once so you can paste the address into Agentverse UI or ASI:One.
     print("Hatch uAgent address:", agent.address)
+    # `LocalWallet.address` is a method in some uAgents versions.
+    wallet_addr = agent.wallet.address() if callable(agent.wallet.address) else agent.wallet.address
+    print("Wallet address (for Almanac contract registration):", wallet_addr)
+    print("Network:", os.environ.get("HATCH_NETWORK", "mainnet"))
     print("Starting agent loop (Ctrl+C to stop). Mailbox requires AGENTVERSE_API_KEY in .env.")
     agent.run()

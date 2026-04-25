@@ -13,6 +13,23 @@ const EMPTY: GroupSnapshot = {
   users: [],
 };
 
+/** If `/api/state` hits the wrong process (e.g. uAgent on :8000), JSON may lack `users` and crash React. */
+function normalizeSnapshot(raw: unknown): GroupSnapshot {
+  if (!raw || typeof raw !== "object") return EMPTY;
+  const o = raw as Record<string, unknown>;
+  return {
+    messages: Array.isArray(o.messages) ? (o.messages as GroupSnapshot["messages"]) : [],
+    current_proposal:
+      o.current_proposal === null || o.current_proposal === undefined
+        ? null
+        : (o.current_proposal as GroupSnapshot["current_proposal"]),
+    expiry_days: typeof o.expiry_days === "number" ? o.expiry_days : EMPTY.expiry_days,
+    last_booking: o.last_booking ?? null,
+    ideas: Array.isArray(o.ideas) ? (o.ideas as GroupSnapshot["ideas"]) : [],
+    users: Array.isArray(o.users) ? (o.users as GroupSnapshot["users"]) : [],
+  };
+}
+
 export function useGroupState() {
   const [snapshot, setSnapshot] = useState<GroupSnapshot>(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -26,7 +43,7 @@ export function useGroupState() {
     const tick = async () => {
       if (stopRef.current) return;
       try {
-        const s = await api.state();
+        const s = normalizeSnapshot(await api.state());
         setSnapshot(s);
       } catch {
         // ignore — server might be restarting
@@ -47,7 +64,7 @@ export function useGroupState() {
       try {
         await fn(...args);
         // bump immediately for snappier UI
-        const s = await api.state();
+        const s = normalizeSnapshot(await api.state());
         setSnapshot(s);
       } finally {
         setBusy(false);

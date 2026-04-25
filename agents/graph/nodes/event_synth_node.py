@@ -1,12 +1,17 @@
-"""AI-grounded novel events — uses ASI:One trained knowledge of real venues.
+"""Event synthesis node — calls ASI:One to discover real LA venues live.
 
-The AI is instructed to use ONLY venues it knows are real (LA-default, worldwide
-if the message implies it). URLs are constructed server-side as Google Maps
-search links so every "see location" tap opens a real pin — no hallucinated
-broken URLs.
+This node owns:
+  - the SYSTEM prompt that pins the model to *real* venues (no hallucinated URLs)
+  - the ASI:One call (via lib.integrations.asi_one)
+  - normalization into the dict shape the rest of the graph + UI consumes
+  - a per-query cache so demo replays are instant and deterministic
 
-Cached by query → demo determinism.
+We deliberately do NOT fall back to a curated events.json — the project decision
+is "live LLM discovery only". If ASI:One returns nothing or errors out, the node
+returns an empty match list and the format node renders an empty bubble (the
+trigger node usually catches this earlier anyway).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -14,11 +19,12 @@ from threading import Lock
 from urllib.parse import quote_plus
 from uuid import uuid4
 
-from lib import matching
 from lib.integrations import asi_one
 
+from ..state import ReactiveState
 
-SYSTEM = """You are Hatch, a real-time event-discovery agent.
+
+_SYSTEM = """You are Hatch, a real-time event-discovery agent.
 A friend group is chatting. Surface up to 3 plausible events that match the activity in the message.
 
 CRITICAL — VENUE REALISM:
@@ -27,11 +33,11 @@ CRITICAL — VENUE REALISM:
   Greek Theatre, Hollywood Bowl, The Wiltern, The Roxy, Crypto.com Arena, Dodger Stadium, BMO Stadium,
   Smorgasburg ROW DTLA, Grand Central Market, Apotheke (Chinatown), Resident (Arts District),
   Sushi Gen (Little Tokyo), Sea Harbour (Rosemead), Quarters Korean BBQ (Koreatown),
-  Republique, Bavel, Bestia, Gjelina, Sqirl, Republique, Maude's Liquor Bar,
+  Republique, Bavel, Bestia, Gjelina, Sqirl, Maude's Liquor Bar,
   The Comedy Store, Upright Citizens Brigade, Largo at the Coronet, The Improv,
   LACMA, MOCA, The Broad, Hauser & Wirth, Hammer Museum, Getty Center,
   Griffith Observatory, Runyon Canyon, Echo Park Lake, El Matador State Beach, Malibu Pier,
-  The Stronghold (Lincoln Heights), Cliffs of Id, Stronghold,
+  The Stronghold (Lincoln Heights), Cliffs of Id,
   Tropicana Drive-In, Rooftop Cinema Club, Vidiots,
   UCLA campus venues if the message implies students.
 - If the message implies a different city or country, use real venues there
@@ -67,47 +73,9 @@ Return EXACTLY this JSON shape:
 }"""
 
 
-_ACTIVITY_HINTS = (
-    "wanna", "want to", "want", "anyone", "down for", "down to", "let's", "lets ",
-    "should we", "we should", "looking for", "going to", "go to",
-    "tonight", "tomorrow", "weekend", "saturday", "sunday", "friday",
-    "next week", "this week", "?",
-)
-
-_STOPWORDS = {
-    "the", "and", "for", "any", "you", "all", "are", "was", "but", "not",
-    "can", "now", "out", "anyone", "down", "who", "want", "going", "with",
-    "this", "that", "have", "yall", "y'all", "guys", "lol", "lmk", "fr",
-}
-
+# Per-query cache. Keeps demo deterministic; survives the process lifetime.
 _cache: dict[str, list[dict]] = {}
 _cache_lock = Lock()
-
-
-def looks_like_activity(text: str) -> bool:
-    t = text.lower()
-    if len(t.split()) < 3:
-        return False
-    return any(h in t for h in _ACTIVITY_HINTS)
-
-
-def find_reactive_matches(message: str, *, n: int = 3) -> list[dict]:
-    """Best-effort match: AI synthesis with real venues, curated keyword fallback."""
-    if not looks_like_activity(message):
-        return []
-
-    key = message.strip().lower()
-    with _cache_lock:
-        if key in _cache:
-            return _cache[key][:n]
-
-    events = _synthesize_via_ai(message, n=n)
-    if not events:
-        events = _fallback_curated(message, n=n)
-
-    with _cache_lock:
-        _cache[key] = events
-    return events
 
 
 def _maps_url(venue: str, city: str) -> str:
@@ -116,16 +84,20 @@ def _maps_url(venue: str, city: str) -> str:
     return f"https://www.google.com/maps/search/?api=1&query={q}"
 
 
-def _synthesize_via_ai(message: str, n: int) -> list[dict]:
+def _synthesize(message: str, n: int) -> list[dict]:
+    """Ask ASI:One for up to N event candidates. Returns [] on failure."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    user = f'Today: {today}\nMessage: "{message}"\n\nReturn up to {n} matching events with REAL venues you actually know.'
+    user = (
+        f'Today: {today}\nMessage: "{message}"\n\n'
+        f"Return up to {n} matching events with REAL venues you actually know."
+    )
 
     try:
-        # Lower temperature → factual recall over creativity
-        data = asi_one.chat_json(SYSTEM, user, temperature=0.4, max_tokens=900)
+        # Lower temperature → factual recall over creativity.
+        data = asi_one.chat_json(_SYSTEM, user, temperature=0.4, max_tokens=900)
         events = data.get("events", []) or []
     except Exception as e:
-        print(f"[synthesis] AI failed: {e}")
+        print(f"[event_synth] ASI:One failed: {e}")
         return []
 
     out: list[dict] = []
@@ -155,19 +127,22 @@ def _synthesize_via_ai(message: str, n: int) -> list[dict]:
     return out
 
 
-def _fallback_curated(message: str, n: int) -> list[dict]:
-    """When AI is down, do a smarter keyword search than v1 string-contains."""
-    text = message.lower()
-    terms = [t.strip("?!.,'\"") for t in text.split()]
-    terms = [t for t in terms if len(t) >= 4 and t not in _STOPWORDS]
-    if not terms:
-        return []
+def event_synth_node(state: ReactiveState) -> ReactiveState:
+    if not state.get("should_react"):
+        return {**state, "matches": []}
 
-    scored: list[tuple[int, dict]] = []
-    for e in matching.load_events():
-        haystack = (e["title"] + " " + " ".join(e["tags"])).lower()
-        hits = sum(1 for t in terms if t in haystack)
-        if hits:
-            scored.append((hits, e))
-    scored.sort(key=lambda x: -x[0])
-    return [e for _, e in scored[:n]]
+    text = (state.get("text") or "").strip()
+    if not text:
+        return {**state, "matches": []}
+
+    key = text.lower()
+    with _cache_lock:
+        cached = _cache.get(key)
+    if cached is not None:
+        return {**state, "matches": cached[:3]}
+
+    matches = _synthesize(text, n=3)
+
+    with _cache_lock:
+        _cache[key] = matches
+    return {**state, "matches": matches}

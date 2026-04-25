@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import orchestrator
-from lib import event_synthesis, matching
+from lib import matching
 from lib.group_state import store
 
 load_dotenv()
@@ -83,9 +83,11 @@ async def send_message(req: SendMessageRequest) -> dict:
         raise HTTPException(400, f"unknown user: {req.user_id}")
     msg = await store().send_message(req.user_id, req.text)
 
-    # Reactive surfacing — AI synthesis gates itself on activity intent.
+    # Reactive surfacing — runs through the LangGraph reactive pipeline when
+    # USE_LANGGRAPH=1, otherwise falls back to the direct synthesis path.
     try:
-        matches = await asyncio.to_thread(event_synthesis.find_reactive_matches, req.text)
+        result = await asyncio.to_thread(orchestrator.react_to_message, req.text, msg.id)
+        matches = result.get("matches") or []
         if matches:
             await store().add_reactive(parent_id=msg.id, query=req.text, matches=matches)
     except Exception as e:
@@ -97,10 +99,11 @@ async def send_message(req: SendMessageRequest) -> dict:
 @app.post("/react")
 async def react(req: ReactRequest) -> dict:
     """Manual reactive trigger (used by 'propose to group' on the panel side)."""
-    matches = await asyncio.to_thread(event_synthesis.find_reactive_matches, req.query)
+    result = await asyncio.to_thread(orchestrator.react_to_message, req.query, req.parent_id)
+    matches = result.get("matches") or []
     if matches:
         await store().add_reactive(parent_id=req.parent_id or "", query=req.query, matches=matches)
-    return {"matches": matches}
+    return {"matches": matches, "reply": result.get("reply")}
 
 
 # ──────────────────────── proposal lifecycle ────────────────────────
@@ -205,6 +208,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "server:app",
         host=os.environ.get("SERVER_HOST", "0.0.0.0"),
-        port=int(os.environ.get("SERVER_PORT", "8000")),
+        port=int(os.environ.get("SERVER_PORT", "8005")),
         reload=True,
     )
