@@ -23,6 +23,8 @@ export const api = {
   swapAlternate: () => jpost("/swap_alternate"),
 
   dismissIdea: (event_id: string) => jpost("/dismiss_idea", { event_id }),
+  hideIdea: (event_id: string, user_id: string) =>
+    jpost("/hide_idea", { event_id, user_id }),
   proposeIdea: (event_id: string, user_id?: string) =>
     jpost("/propose_idea", { event_id, user_id }),
 

@@ -119,6 +119,9 @@ export function useGroupState() {
   });
   const swapAlternate = wrap(() => api.swapAlternate());
   const dismissIdea = wrap((eventId: string) => api.dismissIdea(eventId));
+  const hideIdea = wrap((eventId: string, userId: string) =>
+    api.hideIdea(eventId, userId)
+  );
   const proposeIdea = wrap((eventId: string, userId?: string) =>
     api.proposeIdea(eventId, userId)
   );
@@ -227,6 +230,7 @@ export function useGroupState() {
     skipProposal,
     swapAlternate,
     dismissIdea,
+    hideIdea,
     proposeIdea,
     proposeReactiveOption,
     skipReactiveOption,
