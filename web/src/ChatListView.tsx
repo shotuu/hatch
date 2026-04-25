@@ -7,6 +7,7 @@ import type { GroupSnapshot, User } from "./types";
 type Props = {
   viewer: User;
   snapshot: GroupSnapshot;
+  unreadCount: number;
   onOpenChat: () => void;
 };
 
@@ -179,15 +180,64 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
 
 const FALLBACK_DUMMY_CHATS: DummyChat[] = DUMMY_CHATS_BY_USER.daniel;
 
-export default function ChatListView({ viewer, snapshot, onOpenChat }: Props) {
+const ARCHIVED_CHATS: DummyChat[] = [
+  {
+    id: "museum-loop",
+    name: "Museum Loop",
+    preview: "Archived cold · no plan hatched",
+    ts: "Mar 18",
+    expiryDays: 0,
+    members: [
+      { id: "mara", name: "Mara", color: "#B5A3FF" },
+      { id: "eli", name: "Eli", color: "#FF9466" },
+      { id: "nina", name: "Nina", color: "#5BC586" },
+    ],
+  },
+  {
+    id: "beach-day",
+    name: "Beach Day",
+    preview: "Archived cold · thread went quiet",
+    ts: "Feb 02",
+    expiryDays: 0,
+    members: [
+      { id: "sam-b", name: "Sam", color: "#FFC857" },
+      { id: "jo", name: "Jo", color: "#60A5FA" },
+      { id: "liv-b", name: "Liv", color: "#F472B6" },
+    ],
+  },
+];
+
+export default function ChatListView({
+  viewer,
+  snapshot,
+  unreadCount,
+  onOpenChat,
+}: Props) {
   const { messages, current_proposal, nest_warmth, users } = snapshot;
+  const [folder, setFolder] = useState<"active" | "archive">("active");
   const lastUserMsg = [...messages].reverse().find((m) => m.kind === "user");
+  const lastAuthor = lastUserMsg?.author_id
+    ? users.find((u) => u.id === lastUserMsg.author_id)
+    : undefined;
+  const lastAuthorLabel =
+    lastAuthor && lastUserMsg
+      ? lastAuthor.id === viewer.id
+        ? "You"
+        : lastAuthor.name
+      : null;
   const previewText = current_proposal
     ? `Hatch · ${current_proposal.event.title}`
-    : lastUserMsg?.text || "miss y'all 😭";
-  const unread = !!current_proposal && current_proposal.status === "pending";
+    : lastUserMsg
+    ? `${lastAuthorLabel ? lastAuthorLabel + ": " : ""}${lastUserMsg.text || ""}`
+    : "miss y'all 😭";
+  const newPlan =
+    !!current_proposal && current_proposal.status === "pending";
   const dummyChats = DUMMY_CHATS_BY_USER[viewer.id] || FALLBACK_DUMMY_CHATS;
-  const totalChats = dummyChats.length + 1;
+  const mainArchived = nest_warmth <= 0;
+  const archivedChats = ARCHIVED_CHATS;
+  const totalChats = dummyChats.length + (mainArchived ? 0 : 1);
+  const archiveCount = archivedChats.length + (mainArchived ? 1 : 0);
+  const showingArchive = folder === "archive";
 
   return (
     <div className="flex flex-col h-full bg-cream-50">
@@ -200,33 +250,98 @@ export default function ChatListView({ viewer, snapshot, onOpenChat }: Props) {
         </div>
         <div className="mt-2 flex items-baseline justify-between">
           <div className="text-[17px] font-semibold text-ink leading-tight">
-            Messages
+            {showingArchive ? "Archive" : "Messages"}
           </div>
-          <div className="text-[10px] text-ink-subtle">{totalChats} chats</div>
+          <div className="flex items-center gap-2">
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => setFolder((v) => (v === "active" ? "archive" : "active"))}
+              className={`rounded-full px-2.5 py-1 text-[10.5px] font-semibold ring-1 transition-colors ${
+                showingArchive
+                  ? "bg-coral-500 text-white ring-coral-500"
+                  : "bg-white text-coral-700 ring-coral-200"
+              }`}
+              aria-pressed={showingArchive}
+            >
+              {showingArchive ? "Messages" : `Archive ${archiveCount}`}
+            </motion.button>
+            <div className="text-[10px] text-ink-subtle">
+              {showingArchive ? archiveCount : totalChats} chats
+            </div>
+          </div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar">
-        <ChatRow
-          name="LA Friends"
-          previewText={previewText}
-          ts="now"
-          avatarCluster={users}
-          expiryDays={nest_warmth}
-          unread={unread}
+      {!showingArchive && unreadCount > 0 && (
+        <motion.button
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileTap={{ scale: 0.98 }}
           onClick={onOpenChat}
-        />
-        {dummyChats.map((c) => (
-          <ChatRow
-            key={c.id}
-            name={c.name}
-            previewText={c.preview}
-            ts={c.ts}
-            avatarCluster={c.members as User[]}
-            expiryDays={c.expiryDays}
-            onClick={() => {}}
-          />
-        ))}
+          className="mx-4 mt-3 rounded-2xl bg-coral-500 text-white px-3 py-2 text-left shadow-warm flex items-center justify-between"
+        >
+          <span className="text-[12.5px] font-semibold">
+            {unreadCount} unread in LA Friends
+          </span>
+          <span className="text-[11px] opacity-90">Open</span>
+        </motion.button>
+      )}
+
+      <div className="flex-1 overflow-y-auto no-scrollbar">
+        {showingArchive ? (
+          <>
+            {mainArchived && (
+              <ChatRow
+                name="LA Friends"
+                previewText="Archived cold · countdown hit zero"
+                ts="now"
+                avatarCluster={users}
+                expiryDays={nest_warmth}
+                archived
+                onClick={onOpenChat}
+              />
+            )}
+            {archivedChats.map((c) => (
+              <ChatRow
+                key={c.id}
+                name={c.name}
+                previewText={c.preview}
+                ts={c.ts}
+                avatarCluster={c.members as User[]}
+                expiryDays={c.expiryDays}
+                archived
+                onClick={() => {}}
+              />
+            ))}
+          </>
+        ) : (
+          <>
+            {!mainArchived && (
+              <ChatRow
+                name="LA Friends"
+                previewText={previewText}
+                ts="now"
+                avatarCluster={users}
+                expiryDays={nest_warmth}
+                unread={unreadCount > 0}
+                unreadCount={unreadCount}
+                newPlan={newPlan}
+                onClick={onOpenChat}
+              />
+            )}
+            {dummyChats.map((c) => (
+              <ChatRow
+                key={c.id}
+                name={c.name}
+                previewText={c.preview}
+                ts={c.ts}
+                avatarCluster={c.members as User[]}
+                expiryDays={c.expiryDays}
+                onClick={() => {}}
+              />
+            ))}
+          </>
+        )}
       </div>
     </div>
   );
@@ -239,6 +354,9 @@ type RowProps = {
   avatarCluster: User[];
   expiryDays: number;
   unread?: boolean;
+  unreadCount?: number;
+  newPlan?: boolean;
+  archived?: boolean;
   onClick: () => void;
 };
 
@@ -249,6 +367,9 @@ function ChatRow({
   avatarCluster,
   expiryDays,
   unread,
+  unreadCount = 0,
+  newPlan,
+  archived,
   onClick,
 }: RowProps) {
   const [membersOpen, setMembersOpen] = useState(false);
@@ -305,7 +426,27 @@ function ChatRow({
           <div className="text-[13px] text-ink-muted truncate mt-0.5">{previewText}</div>
         </div>
         <div className="flex items-center gap-2 mt-0.5 shrink-0">
-          {unread && <div className="w-2 h-2 rounded-full bg-coral-500" />}
+          {archived && (
+            <span className="px-1.5 py-0.5 rounded-full bg-cream-200 text-[9px] font-semibold uppercase tracking-wide text-ink-muted">
+              old
+            </span>
+          )}
+          {newPlan && (
+            <motion.div
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-coral-500 to-yolk text-white text-[9px] font-bold uppercase tracking-wide ring-2 ring-cream-50 shadow-warm"
+              title="New plan suggested"
+            >
+              <span aria-hidden>🥚</span>
+              <span>plan</span>
+            </motion.div>
+          )}
+          {unread && (
+            <div className="min-w-5 h-5 px-1.5 rounded-full bg-coral-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-cream-50">
+              {unreadCount}
+            </div>
+          )}
           <NestEgg warmth={expiryDays} />
         </div>
       </motion.div>

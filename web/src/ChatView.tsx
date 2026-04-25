@@ -17,8 +17,32 @@ type Props = {
 };
 
 export default function ChatView({ viewer, actions, onBack }: Props) {
-  const { snapshot, busy, send, approve, dismissProposal, swapAlternate, proposeIdea, dismissIdea } = actions;
+  const {
+    snapshot,
+    busy,
+    plannedEvents,
+    reactiveSkips,
+    rejectedEventIds,
+    send,
+    approve,
+    dismissProposal,
+    skipProposal,
+    swapAlternate,
+    proposeIdea,
+    proposeReactiveOption,
+    skipReactiveOption,
+    dismissIdea,
+  } = actions;
   const { messages, current_proposal, nest_warmth, nest_max, users, ideas } = snapshot;
+  const proposalActive =
+    !!current_proposal && current_proposal.status !== "skipped";
+  const proposedEventId = current_proposal?.event.id ?? null;
+  const bookedEventIds = new Set(plannedEvents.map((e) => e.id));
+  const terminalIdeaIds = new Set([...bookedEventIds, ...rejectedEventIds]);
+  const visibleIdeasCount = ideas.filter(
+    (i) => !i.dismissed && !terminalIdeaIds.has(i.event.id),
+  ).length;
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [ideasOpen, setIdeasOpen] = useState(false);
@@ -56,27 +80,32 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
         nestWarmth={nest_warmth}
         nestMax={nest_max}
         onOpenIdeas={() => setIdeasOpen(true)}
-        ideasCount={ideas.length}
+        ideasCount={visibleIdeasCount}
+        plannedCount={plannedEvents.length}
         onBack={onBack}
       />
 
-      <AnimatePresence>
-        {current_proposal && current_proposal.status !== "skipped" && (
-          <AgentMessage
-            key={current_proposal.id}
-            proposal={current_proposal}
-            viewer={viewer}
-            members={users}
-            collapsed={proposalCollapsed}
-            onToggleCollapse={() => setProposalCollapsed((v) => !v)}
-            onApprove={() => approve(viewer.id)}
-            onSkip={() => dismissProposal()}
-            onSwap={() => swapAlternate()}
-          />
-        )}
-      </AnimatePresence>
-
       <div className="flex-1 relative">
+        <div className="absolute inset-x-0 top-0 z-20 pointer-events-none">
+          <AnimatePresence>
+            {proposalActive && current_proposal && (
+              <div className="pointer-events-auto bg-cream-50 border-b border-ink-faint/30 shadow-warm pb-1">
+                <AgentMessage
+                  key={current_proposal.id}
+                  proposal={current_proposal}
+                  viewer={viewer}
+                  members={users}
+                  collapsed={proposalCollapsed}
+                  onToggleCollapse={() => setProposalCollapsed((v) => !v)}
+                  onApprove={() => approve(viewer.id)}
+                  onSkip={() => skipProposal(viewer.id)}
+                  onSwap={() => swapAlternate()}
+                />
+              </div>
+            )}
+          </AnimatePresence>
+        </div>
+
         <div
           ref={scrollRef}
           className="absolute inset-0 overflow-y-auto py-2 no-scrollbar scroll-smooth [overflow-anchor:none]"
@@ -87,6 +116,26 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
             </div>
             <AnimatePresence initial={false}>
               {messages.map((m) => {
+                if (m.kind === "celebration") {
+                  return (
+                    <motion.div
+                      key={m.id}
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                      className="px-3 py-2 flex justify-center"
+                    >
+                      <div className="rounded-2xl bg-gradient-to-br from-mint/25 via-cream-50 to-yolk/15 ring-1 ring-mint/40 px-3.5 py-2 text-center shadow-bubble max-w-[80%]">
+                        <div className="text-[12.5px] font-semibold text-[#1F7A4A]">
+                          {m.text}
+                        </div>
+                        <div className="text-[11px] text-ink-muted mt-0.5">
+                          {m.event_title} · on every calendar
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                }
                 if (m.kind === "user") {
                   const author = (m.author_id && usersById[m.author_id]) || {
                     id: m.author_id || "?",
@@ -103,12 +152,23 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
                     />
                   );
                 }
+                if (m.kind === "proposal") {
+                  return null;
+                }
                 return (
                   <ReactiveReply
                     key={m.id}
                     query={m.query || ""}
                     matches={m.matches || []}
-                    onProposeToGroup={(eid) => proposeIdea(eid)}
+                    viewer={viewer}
+                    members={users}
+                    skipsByEvent={reactiveSkips}
+                    bookedEventIds={bookedEventIds}
+                    proposedEventId={proposedEventId}
+                    onProposeToGroup={(eid) =>
+                      proposeReactiveOption(eid, m.id, viewer.id)
+                    }
+                    onSkip={(eid) => skipReactiveOption(eid, viewer.id)}
                   />
                 );
               })}
@@ -134,9 +194,11 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
       <IdeasPanel
         open={ideasOpen}
         ideas={ideas}
+        plannedEvents={plannedEvents}
+        rejectedEventIds={rejectedEventIds}
         onClose={() => setIdeasOpen(false)}
         onPropose={(eid) => {
-          proposeIdea(eid);
+          proposeIdea(eid, viewer.id);
           setIdeasOpen(false);
         }}
         onDismiss={(eid) => dismissIdea(eid)}

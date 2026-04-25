@@ -50,14 +50,14 @@ export default function AgentMessage({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ type: "spring", stiffness: 320, damping: 26, mass: 0.9 }}
-      className="mx-3 my-3 rounded-[22px] bg-gradient-to-br from-coral-50 via-cream-50 to-yolk/20 ring-1 ring-coral-200/70 p-3.5 shadow-warm relative overflow-hidden"
+      className="mx-3 my-3 rounded-[22px] bg-gradient-to-br from-coral-50 via-cream-50 to-[#FFF1BF] ring-1 ring-coral-200/70 p-3.5 shadow-warm relative overflow-hidden"
     >
       <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-white/60 to-transparent pointer-events-none" />
 
       <div className="flex items-center gap-1.5 relative">
         <HatchLogo size={16} />
         <div className="text-[11px] uppercase tracking-wider text-coral-700 font-semibold">
-          Hatch · pinned
+          Hatch · plan
         </div>
         {collapsed && proposal.status === "pending" && (
           <span className="ml-1.5 text-[10px] text-ink-muted font-medium">
@@ -78,7 +78,7 @@ export default function AgentMessage({
           <motion.button
             whileTap={{ scale: 0.92 }}
             onClick={onToggleCollapse}
-            aria-label={collapsed ? "Expand pinned plan" : "Collapse pinned plan"}
+            aria-label={collapsed ? "Expand plan" : "Collapse plan"}
             className="ml-auto w-6 h-6 rounded-full bg-white/70 ring-1 ring-coral-200/70 flex items-center justify-center text-coral-700 text-[11px]"
           >
             <motion.span
@@ -200,10 +200,10 @@ export default function AgentMessage({
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={proposal.alternates.length ? onSwap : onSkip}
+              onClick={onSkip}
               className="rounded-full bg-white ring-1 ring-ink-faint/50 text-[12px] py-2.5 text-ink-muted font-medium"
             >
-              {proposal.alternates.length ? "Other" : "Skip"}
+              Skip
             </motion.button>
           </motion.div>
         )}

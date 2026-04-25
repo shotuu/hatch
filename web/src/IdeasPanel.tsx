@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import HatchLogo from "./HatchLogo";
-import type { Idea } from "./types";
+import type { Event, Idea } from "./types";
 
 type Props = {
   open: boolean;
   ideas: Idea[];
+  plannedEvents: Event[];
+  rejectedEventIds: Set<string>;
   onClose: () => void;
   onPropose: (eventId: string) => void;
   onDismiss: (eventId: string) => void;
@@ -26,12 +28,17 @@ const SOURCE_STYLE: Record<Idea["source"], string> = {
 export default function IdeasPanel({
   open,
   ideas,
+  plannedEvents,
+  rejectedEventIds,
   onClose,
   onPropose,
   onDismiss,
 }: Props) {
-  const activeIdeas = ideas.filter((i) => !i.dismissed);
-  const hiddenIdeas = ideas.filter((i) => i.dismissed);
+  const plannedEventIds = new Set(plannedEvents.map((e) => e.id));
+  const isTerminal = (idea: Idea) =>
+    plannedEventIds.has(idea.event.id) || rejectedEventIds.has(idea.event.id);
+  const activeIdeas = ideas.filter((i) => !i.dismissed && !isTerminal(i));
+  const hiddenIdeas = ideas.filter((i) => i.dismissed && !isTerminal(i));
   const [hiddenOpen, setHiddenOpen] = useState(false);
 
   useEffect(() => {
@@ -80,11 +87,68 @@ export default function IdeasPanel({
             </header>
 
             <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-2">
-              {activeIdeas.length === 0 && hiddenIdeas.length === 0 && (
-                <div className="text-center py-12 px-6">
-                  <div className="text-[13px] text-ink-muted">
-                    Nothing yet. Hatch will surface anything y'all bring up here.
+              {activeIdeas.length === 0 &&
+                hiddenIdeas.length === 0 &&
+                plannedEvents.length === 0 && (
+                  <div className="text-center py-12 px-6">
+                    <div className="text-[13px] text-ink-muted">
+                      Nothing yet. Hatch will surface anything y'all bring up here.
+                    </div>
                   </div>
+                )}
+
+              {plannedEvents.length > 0 && (
+                <div className="pb-2">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-[#1F7A4A] mb-2 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-mint" />
+                    Planned · {plannedEvents.length}
+                  </div>
+                  <div className="space-y-2">
+                    {plannedEvents.map((e) => {
+                      const when = new Date(e.datetime);
+                      return (
+                        <motion.div
+                          key={e.id}
+                          layout
+                          initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, x: 30 }}
+                          transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                          className="rounded-2xl bg-mint/12 ring-1 ring-mint/40 p-3 shadow-bubble relative overflow-hidden"
+                        >
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-mint text-white flex items-center justify-center text-[11px] font-bold">
+                            ✓
+                          </div>
+                          <div className="text-[9px] uppercase tracking-wider font-semibold text-[#1F7A4A] mb-1">
+                            Booked
+                          </div>
+                          <div className="text-[13px] font-semibold text-ink leading-tight pr-6">
+                            {e.title}
+                          </div>
+                          <div className="text-[11px] text-ink-muted mt-1">
+                            {e.location} ·{" "}
+                            {when.toLocaleDateString(undefined, {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                            {" · "}
+                            {when.toLocaleTimeString([], {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {activeIdeas.length > 0 && (
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-muted mb-1 mt-1 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-coral-500" />
+                  Ideas in the air · {activeIdeas.length}
                 </div>
               )}
 

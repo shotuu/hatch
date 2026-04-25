@@ -12,8 +12,6 @@ export default function DemoPanel({ actions }: Props) {
   const {
     busy,
     wipeStatus,
-    triggerProactive,
-    demoLakers,
     reset,
     onWipe,
     setWarmth,
@@ -53,15 +51,6 @@ export default function DemoPanel({ actions }: Props) {
         </div>
         <span className="w-2 h-2 rounded-full bg-mint shadow-[0_0_0_3px_rgba(91,197,134,0.18)]" />
       </header>
-
-      <Section title="Demo flows">
-        <PrimaryBtn onClick={() => triggerProactive()} busy={busy}>
-          Trigger silence
-        </PrimaryBtn>
-        <GhostBtn onClick={() => demoLakers()} busy={busy}>
-          Send Jono's Lakers msg
-        </GhostBtn>
-      </Section>
 
       <Section title="Time controls">
         <div className="rounded-xl bg-white ring-1 ring-ink-faint/40 p-3 space-y-3">

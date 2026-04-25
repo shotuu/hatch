@@ -18,13 +18,15 @@ export type Event = {
 
 export type ServerMsg = {
   id: string;
-  kind: "user" | "reactive";
+  kind: "user" | "reactive" | "proposal" | "celebration";
   ts: string;
   author_id?: string | null;
   text?: string | null;
   parent_id?: string | null;
   query?: string | null;
   matches?: Event[];
+  proposal_id?: string | null;
+  event_title?: string | null;
 };
 
 export type Proposal = {
@@ -54,6 +56,7 @@ export type Idea = {
 export type GroupSnapshot = {
   messages: ServerMsg[];
   current_proposal: Proposal | null;
+  expiry_days?: number;
   nest_warmth: number;
   nest_max: number;
   last_booking: any;
