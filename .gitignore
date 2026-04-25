@@ -16,6 +16,7 @@ data/tokens/*.json
 # API keys (local scratch file)
 keys.txt
 .env.example
+credentials.json
 
 # Web
 web/node_modules/
