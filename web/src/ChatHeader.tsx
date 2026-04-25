@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import HatchLogo from "./HatchLogo";
+import { NestMeter } from "./Nest";
 import type { User } from "./types";
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
   expiryDays: number;
   onOpenIdeas: () => void;
   ideasCount: number;
+  onBack?: () => void;
 };
 
 export default function ChatHeader({
@@ -16,20 +18,19 @@ export default function ChatHeader({
   expiryDays,
   onOpenIdeas,
   ideasCount,
+  onBack,
 }: Props) {
-  const expiryStyle =
-    expiryDays <= 7
-      ? "bg-coral-100 text-coral-700 ring-coral-200"
-      : expiryDays <= 14
-      ? "bg-yolk/20 text-coral-700 ring-yolk/40"
-      : "bg-mint/15 text-[#2F8F5A] ring-mint/30";
-
   return (
     <header className="px-4 pt-2 pb-3 border-b border-ink-faint/40 bg-cream-50/95 backdrop-blur sticky top-0 z-10">
       <div className="flex items-center justify-between">
-        <button className="text-coral-600 text-[15px] font-medium px-1 -ml-1">
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={onBack}
+          aria-label="Back to chats"
+          className="text-coral-600 text-[22px] leading-none font-medium px-1 -ml-1"
+        >
           ‹
-        </button>
+        </motion.button>
 
         <div className="flex flex-col items-center">
           <div className="flex -space-x-2 mb-1">
@@ -64,15 +65,7 @@ export default function ChatHeader({
         </motion.button>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: -4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15, duration: 0.4 }}
-        className={`mt-2 mx-auto w-fit text-[10.5px] font-semibold px-2.5 py-1 rounded-full ring-1 ${expiryStyle}`}
-      >
-        {expiryDays <= 7 ? "🥚 " : ""}
-        {expiryDays} day{expiryDays === 1 ? "" : "s"} left to plan something
-      </motion.div>
+      <NestMeter warmth={expiryDays} />
     </header>
   );
 }

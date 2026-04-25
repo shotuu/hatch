@@ -13,9 +13,10 @@ import type { User } from "./types";
 type Props = {
   viewer: User;
   actions: GroupActions;
+  onBack?: () => void;
 };
 
-export default function ChatView({ viewer, actions }: Props) {
+export default function ChatView({ viewer, actions, onBack }: Props) {
   const { snapshot, busy, send, approve, dismissProposal, swapAlternate, proposeIdea, dismissIdea } = actions;
   const { messages, current_proposal, expiry_days, users, ideas } = snapshot;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -38,6 +39,7 @@ export default function ChatView({ viewer, actions }: Props) {
         expiryDays={expiry_days}
         onOpenIdeas={() => setIdeasOpen(true)}
         ideasCount={ideas.length}
+        onBack={onBack}
       />
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto py-2 no-scrollbar">

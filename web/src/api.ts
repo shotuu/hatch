@@ -27,4 +27,7 @@ export const api = {
 
   reset: () => jpost("/reset"),
   wipe: () => jpost("/cleanup"),
+
+  setWarmth: (days: number, auto_propose = true) =>
+    jpost("/set_warmth", { days, auto_propose }),
 };

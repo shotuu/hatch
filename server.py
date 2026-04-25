@@ -55,6 +55,11 @@ class ReactRequest(BaseModel):
     parent_id: str | None = None
 
 
+class SetWarmthRequest(BaseModel):
+    days: int
+    auto_propose: bool = True  # when nest goes cold, fire the agent
+
+
 # ──────────────────────── core ────────────────────────
 
 
@@ -141,6 +146,26 @@ async def approve(req: ApproveRequest) -> dict:
 async def dismiss_proposal() -> dict:
     await store().skip_proposal()
     return {"ok": True}
+
+
+@app.post("/set_warmth")
+async def set_warmth(req: SetWarmthRequest) -> dict:
+    """Dev-console hook: directly set nest warmth (0–30) and, if it just went
+    cold and no proposal is active, auto-fire the proactive pipeline so the
+    UI shows the agent reacting in real time."""
+    s = store()
+    new_value = await s.set_warmth(req.days)
+    auto_fired = False
+    if req.auto_propose and s.is_cold(threshold=3):
+        plan = await orchestrator.propose_plan()
+        if plan.get("ok"):
+            await s.set_proposal(
+                window=plan["window"],
+                event=plan["event"],
+                alternates=plan.get("alternates", []),
+            )
+            auto_fired = True
+    return {"ok": True, "warmth": new_value, "auto_proposed": auto_fired}
 
 
 @app.post("/swap_alternate")

@@ -63,6 +63,7 @@ export function useGroupState() {
   const dismissIdea = wrap((eventId: string) => api.dismissIdea(eventId));
   const proposeIdea = wrap((eventId: string) => api.proposeIdea(eventId));
   const reset = wrap(() => api.reset());
+  const setWarmth = wrap((days: number) => api.setWarmth(days));
 
   const onWipe = async () => {
     setBusy(true);
@@ -95,6 +96,7 @@ export function useGroupState() {
     dismissIdea,
     proposeIdea,
     reset,
+    setWarmth,
     onWipe,
     demoLakers,
   };
