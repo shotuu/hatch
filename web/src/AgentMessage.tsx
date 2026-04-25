@@ -250,7 +250,7 @@ export default function AgentMessage({
               ✓
             </span>
             <span>
-              Booked. <b>30 more days together</b> — chat is alive again.
+              Booked. <b>Nest is glowing</b> — see you there.
             </span>
           </motion.div>
         )}

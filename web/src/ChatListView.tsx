@@ -14,7 +14,7 @@ type DummyChat = {
   name: string;
   preview: string;
   ts: string;
-  expiryDays: number;
+  nestWarmth: number;
   members: { id: string; name: string; color: string }[];
 };
 
@@ -25,7 +25,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Art Crit Group 🎨",
       preview: "Mira: studio open at 4?",
       ts: "10:48 AM",
-      expiryDays: 18,
+      nestWarmth: 18,
       members: [
         { id: "mira", name: "Mira", color: "#B5A3FF" },
         { id: "owen", name: "Owen", color: "#FF9466" },
@@ -37,7 +37,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Coffee Hunters ☕",
       preview: "Theo: that pourover at Maru 🤌",
       ts: "9:02 AM",
-      expiryDays: 4,
+      nestWarmth: 4,
       members: [
         { id: "theo", name: "Theo", color: "#FFC857" },
         { id: "ines", name: "Ines", color: "#F472B6" },
@@ -49,7 +49,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Ramen Run 🍜",
       preview: "Kenji: line is short rn",
       ts: "Yesterday",
-      expiryDays: 12,
+      nestWarmth: 12,
       members: [
         { id: "kenji", name: "Kenji", color: "#FF7A45" },
         { id: "ari", name: "Ari", color: "#34D399" },
@@ -62,7 +62,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Family ❤️",
       preview: "Mom: did you eat?",
       ts: "Mon",
-      expiryDays: 25,
+      nestWarmth: 25,
       members: [
         { id: "mom-d", name: "Mom", color: "#F472B6" },
         { id: "dad-d", name: "Dad", color: "#60A5FA" },
@@ -76,7 +76,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Hoops Squad 🏀",
       preview: "Marc: run 5s tonight 8pm",
       ts: "11:14 AM",
-      expiryDays: 21,
+      nestWarmth: 21,
       members: [
         { id: "marc", name: "Marc", color: "#FF7A45" },
         { id: "tre", name: "Tre", color: "#34D399" },
@@ -89,7 +89,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Open Mic Crew",
       preview: "Sasha: i bombed it 💀",
       ts: "10:01 AM",
-      expiryDays: 9,
+      nestWarmth: 9,
       members: [
         { id: "sasha", name: "Sasha", color: "#F472B6" },
         { id: "leo-c", name: "Leo", color: "#FFC857" },
@@ -101,7 +101,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Bar Crawl 🍻",
       preview: "Mateo: sunset on the rooftop?",
       ts: "Yesterday",
-      expiryDays: 3,
+      nestWarmth: 3,
       members: [
         { id: "mateo", name: "Mateo", color: "#FF9466" },
         { id: "kira", name: "Kira", color: "#B5A3FF" },
@@ -115,7 +115,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "BBQ Sundays",
       preview: "Cole: ribs are on at 3",
       ts: "Sun",
-      expiryDays: 14,
+      nestWarmth: 14,
       members: [
         { id: "cole", name: "Cole", color: "#FF7A45" },
         { id: "ren-b", name: "Ren", color: "#5BC586" },
@@ -129,7 +129,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Sunrise Yoga 🧘",
       preview: "Priya: 6:30 at the pier ✨",
       ts: "8:42 AM",
-      expiryDays: 27,
+      nestWarmth: 27,
       members: [
         { id: "priya-y", name: "Priya", color: "#5BC586" },
         { id: "elle", name: "Elle", color: "#B5A3FF" },
@@ -141,7 +141,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Veggie Roomies 🥬",
       preview: "Sage: I'm making pad see ew",
       ts: "12:30 PM",
-      expiryDays: 11,
+      nestWarmth: 11,
       members: [
         { id: "sage", name: "Sage", color: "#34D399" },
         { id: "ivy", name: "Ivy", color: "#F472B6" },
@@ -153,7 +153,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Trail Squad 🌲",
       preview: "Wes: Solstice loop sat 7am",
       ts: "Yesterday",
-      expiryDays: 5,
+      nestWarmth: 5,
       members: [
         { id: "wes", name: "Wes", color: "#FF9466" },
         { id: "june", name: "June", color: "#FBBF24" },
@@ -166,7 +166,7 @@ const DUMMY_CHATS_BY_USER: Record<string, DummyChat[]> = {
       name: "Bookclub 📚",
       preview: "Dani: chapters 6–9 by thurs",
       ts: "Tue",
-      expiryDays: 16,
+      nestWarmth: 16,
       members: [
         { id: "dani", name: "Dani", color: "#B5A3FF" },
         { id: "rishi", name: "Rishi", color: "#60A5FA" },
@@ -213,7 +213,6 @@ export default function ChatListView({ viewer, snapshot, onOpenChat }: Props) {
           ts="now"
           avatarCluster={users}
           unread={unread}
-          expiryDays={snapshot.expiry_days}
           onClick={onOpenChat}
         />
         {dummyChats.map((c) => (
@@ -223,7 +222,6 @@ export default function ChatListView({ viewer, snapshot, onOpenChat }: Props) {
             previewText={c.preview}
             ts={c.ts}
             avatarCluster={c.members as User[]}
-            expiryDays={c.expiryDays}
             onClick={() => {}}
           />
         ))}

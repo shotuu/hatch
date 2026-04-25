@@ -8,9 +8,9 @@
 
 **Name:** Hatch — "plans, hatched."
 
-**One-liner:** A group chat that expires unless you actually use it, with an AI agent that makes sure you do.
+**One-liner:** A group chat with a living nest — go silent and it cools, book plans together and it glows. An AI agent makes sure it stays warm.
 
-**Elevator:** Group chats are where plans die. We're building an ambient multi-agent system that lives in a friend group's chat, knows everyone's calendars, and proactively turns dying threads into real booked plans. Not suggestions — bookings. "The friend who always has an idea and actually follows through."
+**Elevator:** Group chats are where plans die. We're building an ambient multi-agent system that lives in a friend group's chat, knows everyone's calendars, and proactively turns dying threads into real booked plans. Not suggestions — bookings. The chat itself has a **nest** — a warmth meter that quietly cools during silence and is restored when the group books a plan together. The agent is the friend who always has an idea and actually follows through; the nest is the visible reward for letting them in.
 
 **Thesis for judges:** Individual AI assistants are solved. Group coordination is still broken. This wouldn't have been buildable six months ago — Fetch.ai's Agentverse + Chat Protocol + ASI:One just made multi-agent orchestration a weekend project.
 
@@ -72,11 +72,11 @@ Agentverse API key: set all scopes to **Write**. Mailbox + Chat Resources are re
 Six things ship. Everything else is a "future work" slide.
 
 1. 4 hardcoded users in one group chat. Real Google accounts (teammates).
-2. One group with a **Trip Name** and an **expiry setting** (7 / 30 / 90 days / never; default 30). Countdown in chat header.
+2. One group with a **Trip Name** and a **nest meter** (0–30 warmth, decays during silence, restores on booking; default starts at 6 for the demo). Visible in chat header as a labeled pill + thin progress bar.
 3. **Reactive AI mode:** when someone sends a message mentioning a concrete activity ("Lakers game next week"), a foldable AI reply appears threaded below with tickets/ETAs/propose-to-group button. Build this LAST — cut if behind.
-4. **Proactive AI mode:** on silence trigger OR expiry-warning trigger, agent posts a full proposal pinned at top of chat. This is the hero flow.
-5. **One-tap book:** writes the event to all 4 Google Calendars + posts a confirmation message + resets expiry timer.
-6. Expiry countdown visible in header; resets when a plan is booked.
+4. **Proactive AI mode:** on silence trigger OR cooling-nest trigger, agent posts a full proposal pinned at top of chat. This is the hero flow.
+5. **One-tap book:** writes the event to all 4 Google Calendars + posts a confirmation message + restores the nest to full warmth.
+6. Nest meter visible in header; restores to full when a plan is booked. The nest never disappears — it just goes cold and asks to be warmed.
 
 ### NOT in the MVP (do not build)
 - Real user account creation / auth / profiles / birthdays
@@ -103,7 +103,7 @@ Register **at least 3 agents on Agentverse** for the "multi-agent" prize check. 
 1. **Calendar agent** — reads `freebusy.query` for 4 users, finds overlap windows ≥ N hours.
 2. **Event agent** — queries curated `events.json`, ranks by interest-tag match against `users.json` interests.
 3. **Proposer agent** — composes the in-chat suggestion message in natural friend-voice using ASI:One.
-4. **Booking agent** — executes Google Calendar writes across 4 accounts, posts confirmation, resets expiry timer.
+4. **Booking agent** — executes Google Calendar writes across 4 accounts, posts confirmation, restores nest warmth to full.
 
 **Orchestrator:** routes sequentially via Chat Protocol — Calendar → Event → Proposer → (user tap) → Booking. No branching, no "alternative proposal" flow.
 
@@ -113,24 +113,24 @@ Each agent needs its own README/keywords on Agentverse for discoverability via A
 
 ## 6. Demo Script (120 seconds — this is the contract)
 
-**Pre-set state:** Phone frame open. Group: "LA Friends" (Maya, Jordan, Priya, you). Trip Name visible. Expiry: **6 days left**. Last message timestamp: **3 weeks ago**. 4 Google Calendar tabs pre-authed and open.
+**Pre-set state:** Phone frame open. Group: "LA Friends" (Maya, Jordan, Priya, you). Trip Name visible. Nest meter shows **🥚 Nest is cooling** with the bar near 20% full. Last message timestamp: **3 weeks ago**. 4 Google Calendar tabs pre-authed and open.
 
 | Time | Beat | On screen |
 |---|---|---|
-| 0:00–0:15 | Hook | Presenter points at expiry badge + silent chat. "Group chats are where plans die." |
+| 0:00–0:15 | Hook | Presenter points at the cooling nest meter + silent chat. "Group chats are where plans die — and you can see this one cooling down in real time." |
 | 0:15–0:35 | **Reactive mode** | Driver types as Maya: "anyone down for the Lakers game next week?" → folded AI reply appears under it with 3 ticket options. Expand → collapse. |
-| 0:35–0:55 | **Silence + proactive** | Scroll up through dead chat. Agent pinned message appears: "This chat expires in 6 days. You're all free Sat 2–6pm. Free gallery opening in Arts District at 3pm. Want me to set it up?" with `[Book it] [Show me something else] [Not this weekend]` |
-| 0:55–1:25 | **The one tap** | Tap **Book it** → animated checklist (RSVP, 4 calendar writes) → switch to Google Calendar tab, show event live → switch back. Agent posts: "Done. Expiry reset — 30 days." |
+| 0:35–0:55 | **Silence + proactive** | Scroll up through dead chat. Agent pinned message appears: "Nest is cooling — let's hatch something. You're all free Sat 2–6pm. Free gallery opening in Arts District at 3pm. Want me to set it up?" with `[Book it] [Show me something else] [Not this weekend]` |
+| 0:55–1:25 | **The one tap** | Tap **Book it** → animated checklist (RSVP, 4 calendar writes) → switch to Google Calendar tab, show event live → switch back. Nest meter animates from cooling → glowing (full bar, ✨ pill). Agent posts: "Booked. Nest is glowing — see you there." |
 | 1:25–1:50 | Pitch | "Under the hood: 4 agents on Fetch.ai's Agentverse coordinating via Chat Protocol, discoverable via ASI:One." Mention Flicker to Flow + Fetch.ai thesis verbatim. |
-| 1:50–2:00 | Close | Tagline: "Plans. Or it's gone." |
+| 1:50–2:00 | Close | Tagline: "Plans, hatched." |
 
 **Risky moment:** Google Calendar API write (0:55–1:25). API can lag 8+ seconds. **Record a flawless backup video by hour 30.** If live fails, cut to video mid-sentence.
 
 Every click must be rehearsed 10+ times. Driver should do it blindfolded by hour 34.
 
 ### Silence trigger mechanic
-- **Demo:** hardcoded "3 weeks ago" timestamp + a button that fires the orchestrator when tapped. Presenter narrates: "The agent's ambient monitor notices the silence and fires the pipeline." Don't build a real timer.
-- **Production (when judges ask):** lightweight watcher checks time-since-last-message + availability every few hours. No polling in the demo.
+- **Demo:** hardcoded "3 weeks ago" timestamp + a cooling nest meter + a button that fires the orchestrator when tapped. Presenter narrates: "The agent's ambient monitor watches the nest cool and fires the pipeline before it goes cold." Don't build a real timer.
+- **Production (when judges ask):** lightweight watcher decays nest warmth as time-since-last-message grows; agent triggers at low warmth + free-window availability. No polling in the demo.
 
 ---
 
@@ -158,7 +158,7 @@ Every click must be rehearsed 10+ times. Driver should do it blindfolded by hour
 - **LLM calls:** transient. Nothing stored.
 - **Data:** per-group, not cross-group.
 - **Approval button:** lives **inside the agent's chat bubble** (Slack-style interactive message). Not a separate UI element.
-- **Expiry reset:** booking a plan resets the countdown. The agent is the chat's lifeline, not a threat.
+- **Nest restore:** booking a plan restores the nest to full warmth. The chat itself never expires — only the warmth decays — so users see growth they're proud of, not a threat hanging over them. The agent is the chat's lifeline.
 
 ---
 

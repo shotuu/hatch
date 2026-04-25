@@ -38,7 +38,7 @@ export type Proposal = {
   booking?: {
     ok: boolean;
     calendars_written?: number;
-    expiry_reset_days?: number;
+    nest_restore?: number;
     failures?: string[];
   } | null;
 };
@@ -54,7 +54,8 @@ export type Idea = {
 export type GroupSnapshot = {
   messages: ServerMsg[];
   current_proposal: Proposal | null;
-  expiry_days: number;
+  nest_warmth: number;
+  nest_max: number;
   last_booking: any;
   ideas: Idea[];
   users: User[];

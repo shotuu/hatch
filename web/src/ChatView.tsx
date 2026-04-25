@@ -18,7 +18,7 @@ type Props = {
 
 export default function ChatView({ viewer, actions, onBack }: Props) {
   const { snapshot, busy, send, approve, dismissProposal, swapAlternate, proposeIdea, dismissIdea } = actions;
-  const { messages, current_proposal, expiry_days, users, ideas } = snapshot;
+  const { messages, current_proposal, nest_warmth, nest_max, users, ideas } = snapshot;
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [ideasOpen, setIdeasOpen] = useState(false);
@@ -53,7 +53,8 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
       <ChatHeader
         tripName="LA Friends"
         members={users}
-        expiryDays={expiry_days}
+        nestWarmth={nest_warmth}
+        nestMax={nest_max}
         onOpenIdeas={() => setIdeasOpen(true)}
         ideasCount={ideas.length}
         onBack={onBack}

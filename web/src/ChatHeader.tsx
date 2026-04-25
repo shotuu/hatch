@@ -5,27 +5,62 @@ import type { User } from "./types";
 type Props = {
   tripName: string;
   members: User[];
-  expiryDays: number;
+  nestWarmth: number;
+  nestMax: number;
   onOpenIdeas: () => void;
   ideasCount: number;
   onBack?: () => void;
 };
 
+type NestTier = {
+  emoji: string;
+  label: string;
+  pillStyle: string;
+  barStyle: string;
+};
+
+function nestTier(warmth: number): NestTier {
+  if (warmth >= 22) {
+    return {
+      emoji: "✨",
+      label: "Nest is glowing",
+      pillStyle: "bg-mint/15 text-[#2F8F5A] ring-mint/30",
+      barStyle: "bg-mint",
+    };
+  }
+  if (warmth >= 12) {
+    return {
+      emoji: "🪺",
+      label: "Nest is warm",
+      pillStyle: "bg-yolk/20 text-coral-700 ring-yolk/40",
+      barStyle: "bg-yolk",
+    };
+  }
+  if (warmth >= 5) {
+    return {
+      emoji: "🥚",
+      label: "Nest is cooling",
+      pillStyle: "bg-coral-100 text-coral-700 ring-coral-200",
+      barStyle: "bg-coral-400",
+    };
+  }
+  return {
+    emoji: "🥚",
+    label: "Nest is cold — let's hatch something",
+    pillStyle: "bg-coral-100 text-coral-700 ring-coral-200",
+    barStyle: "bg-coral-500",
+  };
+}
+
 export default function ChatHeader({
   tripName,
   members,
-  expiryDays,
+  nestWarmth,
+  nestMax,
   onOpenIdeas,
   ideasCount,
   onBack,
 }: Props) {
-  const expiryStyle =
-    expiryDays <= 7
-      ? "bg-coral-100 text-coral-700 ring-coral-200"
-      : expiryDays <= 14
-      ? "bg-yolk/20 text-coral-700 ring-yolk/40"
-      : "bg-mint/15 text-[#2F8F5A] ring-mint/30";
-
   return (
     <header className="px-4 pt-2 pb-3 border-b border-ink-faint/40 bg-cream-50/95 backdrop-blur sticky top-0 z-10">
       <div className="flex items-center justify-between">
@@ -73,15 +108,41 @@ export default function ChatHeader({
         </motion.button>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: -4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15, duration: 0.4 }}
-        className={`mt-2 mx-auto w-fit text-[10.5px] font-semibold px-2.5 py-1 rounded-full ring-1 ${expiryStyle}`}
-      >
-        {expiryDays <= 7 ? "🥚 " : ""}
-        {expiryDays} day{expiryDays === 1 ? "" : "s"} left to plan something
-      </motion.div>
+      <NestMeter warmth={nestWarmth} max={nestMax} />
     </header>
+  );
+}
+
+function NestMeter({ warmth, max }: { warmth: number; max: number }) {
+  const tier = nestTier(warmth);
+  const pct = Math.max(0, Math.min(100, (warmth / max) * 100));
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15, duration: 0.4 }}
+      className="mt-2 mx-auto flex flex-col items-center gap-1"
+    >
+      <div
+        className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-full ring-1 ${tier.pillStyle}`}
+      >
+        {tier.emoji} {tier.label}
+      </div>
+      <div
+        className="w-28 h-1 rounded-full bg-cream-200 overflow-hidden"
+        role="progressbar"
+        aria-label="Nest warmth"
+        aria-valuenow={warmth}
+        aria-valuemin={0}
+        aria-valuemax={max}
+      >
+        <motion.div
+          className={`h-full ${tier.barStyle}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ type: "spring", stiffness: 120, damping: 22 }}
+        />
+      </div>
+    </motion.div>
   );
 }
