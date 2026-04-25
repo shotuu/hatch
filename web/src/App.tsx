@@ -1,5 +1,5 @@
-import ChatView from "./ChatView";
 import DemoPanel from "./DemoPanel";
+import PhoneApp from "./PhoneApp";
 import PhoneFrame from "./PhoneFrame";
 import { useGroupState } from "./state";
 
@@ -14,7 +14,7 @@ export default function App() {
           <div className="flex flex-col xl:flex-row gap-6 items-center xl:items-start">
             {users.map((u) => (
               <PhoneFrame key={u.id} label={u.name}>
-                <ChatView viewer={u} actions={actions} />
+                <PhoneApp viewer={u} actions={actions} />
               </PhoneFrame>
             ))}
           </div>

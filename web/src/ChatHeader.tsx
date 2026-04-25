@@ -8,6 +8,7 @@ type Props = {
   expiryDays: number;
   onOpenIdeas: () => void;
   ideasCount: number;
+  onBack?: () => void;
 };
 
 export default function ChatHeader({
@@ -16,6 +17,7 @@ export default function ChatHeader({
   expiryDays,
   onOpenIdeas,
   ideasCount,
+  onBack,
 }: Props) {
   const expiryStyle =
     expiryDays <= 7
@@ -27,19 +29,26 @@ export default function ChatHeader({
   return (
     <header className="px-4 pt-2 pb-3 border-b border-ink-faint/40 bg-cream-50/95 backdrop-blur sticky top-0 z-10">
       <div className="flex items-center justify-between">
-        <button className="text-coral-600 text-[15px] font-medium px-1 -ml-1">
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={onBack}
+          aria-label="Back to chats"
+          className="text-coral-600 text-[22px] leading-none font-medium px-1 -ml-1"
+        >
           ‹
-        </button>
+        </motion.button>
 
         <div className="flex flex-col items-center">
           <div className="flex -space-x-2 mb-1">
             {members.map((m) => (
-              <div
-                key={m.id}
-                className="w-7 h-7 rounded-full ring-2 ring-cream-50 flex items-center justify-center text-[11px] font-semibold text-white shadow-bubble"
-                style={{ background: m.color }}
-              >
-                {m.name[0]}
+              <div key={m.id} className="relative">
+                <div
+                  className="w-7 h-7 rounded-full ring-2 ring-cream-50 flex items-center justify-center text-[11px] font-semibold text-white shadow-bubble"
+                  style={{ background: m.color }}
+                >
+                  {m.name[0]}
+                </div>
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-mint ring-2 ring-cream-50" />
               </div>
             ))}
           </div>
