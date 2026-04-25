@@ -57,6 +57,7 @@ class Idea:
     source: Literal["reactive", "proposal", "alternate"]
     score: int
     seen_at: str
+    interested: list[str] = field(default_factory=list)  # user ids who clicked I'm in / proposed
     dismissed: bool = False
 
 
@@ -98,16 +99,56 @@ class GroupState:
     def _user_ids(self) -> list[str]:
         return [u["id"] for u in matching.load_users()]
 
+    # ─── ranking ───
+    #
+    # Every mutation that touches the ideas panel funnels through `_rerank` so
+    # the LangGraph `ranking_graph` is the single source of truth for panel
+    # order. That means dedupe, composite scoring, and (later) clustering all
+    # happen in one swappable place.
+
+    def _ideas_to_dicts(self) -> list[dict]:
+        return [asdict(i) for i in self.ideas]
+
+    def _ideas_from_dicts(self, dicts: list[dict]) -> list[Idea]:
+        out: list[Idea] = []
+        for d in dicts:
+            out.append(
+                Idea(
+                    event=d.get("event") or {},
+                    source=d.get("source") or "reactive",  # type: ignore[arg-type]
+                    score=int(d.get("score") or 0),
+                    seen_at=d.get("seen_at") or self._now_iso(),
+                    interested=list(d.get("interested") or []),
+                    dismissed=bool(d.get("dismissed") or False),
+                )
+            )
+        return out
+
+    def _rerank(
+        self,
+        *,
+        additions: list[dict] | None = None,
+        interactions: list[dict] | None = None,
+    ) -> None:
+        from agents.graph.workflow import ranking_graph
+
+        s = ranking_graph().invoke({
+            "ideas": self._ideas_to_dicts(),
+            "additions": additions or [],
+            "interactions": interactions or [],
+        })
+        self.ideas = self._ideas_from_dicts(s.get("ideas") or [])
+
     def _add_idea(self, event: dict, source: str, score: int = 0) -> None:
-        # de-dupe on event id
-        for i in self.ideas:
-            if i.event.get("id") == event.get("id"):
-                i.dismissed = False
-                if score > i.score:
-                    i.score = score
-                return
-        self.ideas.append(Idea(event=event, source=source, score=score, seen_at=self._now_iso()))
-        self.ideas.sort(key=lambda i: -i.score)
+        if not event.get("id"):
+            return
+        self._rerank(additions=[{"event": event, "source": source, "base_score": int(score)}])
+
+    def _mirror_interest(self, event_id: str | None, user_id: str | None, *, on: bool = True) -> None:
+        if not event_id or not user_id:
+            return
+        kind = "interest_on" if on else "interest_off"
+        self._rerank(interactions=[{"event_id": event_id, "user_id": user_id, "kind": kind}])
 
     # ─── mutations ───
 
@@ -164,6 +205,7 @@ class GroupState:
             if user_id not in p.approvals:
                 return p
             p.approvals[user_id] = True
+            self._mirror_interest(p.event.get("id"), user_id, on=True)
             return p
 
     def all_approved(self) -> bool:
@@ -243,6 +285,8 @@ class GroupState:
                 created_at=self._now_iso(),
             )
             self.current_proposal = proposal
+            if proposer_user_id:
+                self._mirror_interest(event.get("id"), proposer_user_id, on=True)
             return self.current_proposal
 
     async def set_warmth(self, days: int) -> int:

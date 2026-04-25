@@ -13,12 +13,13 @@ from functools import lru_cache
 
 from langgraph.graph import END, StateGraph
 
-from .state import GraphState, ReactiveState
+from .state import GraphState, RankingState, ReactiveState
 from .nodes.availability_node import availability_node
 from .nodes.event_select_node import event_select_node
 from .nodes.event_synth_node import event_synth_node
 from .nodes.format_node import format_node
 from .nodes.proposal_node import proposal_node
+from .nodes.ranking_node import ranking_node
 from .nodes.trigger_node import trigger_node
 
 
@@ -60,5 +61,21 @@ def reactive_graph():
     g.add_edge("event_synth", "format")
     g.add_edge("format", END)
 
+    return g.compile()
+
+
+@lru_cache(maxsize=1)
+def ranking_graph():
+    """Compiled graph for the ideas-panel ranking pipeline.
+
+    Single node today (`ranking_node` does dedupe + composite sort). Phase 8+
+    can drop in a `cluster_node` to merge near-duplicates without changing
+    any caller — the graph stays the seam.
+    """
+
+    g = StateGraph(RankingState)
+    g.add_node("rank", ranking_node)
+    g.set_entry_point("rank")
+    g.add_edge("rank", END)
     return g.compile()
 

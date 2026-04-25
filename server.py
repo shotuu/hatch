@@ -89,12 +89,15 @@ async def send_message(req: SendMessageRequest) -> dict:
         raise HTTPException(400, f"unknown user: {req.user_id}")
     msg = await store().send_message(req.user_id, req.text)
 
-    # Reactive surfacing — runs through the LangGraph reactive pipeline when
-    # USE_LANGGRAPH=1, otherwise falls back to the direct synthesis path.
+    # Reactive surfacing — runs through the LangGraph reactive pipeline.
+    # We persist a bubble whenever the trigger node decided to react, even if
+    # event synthesis returned zero matches. That way the user always gets
+    # feedback ("Hatch tried but couldn't find anything that fits") instead
+    # of silent confusion when an off-LA prompt yields no real venue.
     try:
         result = await asyncio.to_thread(orchestrator.react_to_message, req.text, msg.id)
         matches = result.get("matches") or []
-        if matches:
+        if result.get("should_react"):
             await store().add_reactive(parent_id=msg.id, query=req.text, matches=matches)
     except Exception as e:
         print(f"[reactive] failed: {e}")

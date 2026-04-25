@@ -30,7 +30,14 @@ export default function ReactiveReply({
 
   const visibleMatches = matches.filter((e) => !bookedEventIds.has(e.id));
 
-  if (visibleMatches.length === 0) return null;
+  // Two distinct empty cases:
+  //   1. matches was always empty   → trigger fired, synth found nothing →
+  //      show a quiet "couldn't find anything" bubble so the user knows
+  //      Hatch tried.
+  //   2. matches > 0 but all booked → render nothing; the planned section
+  //      already shows them and we don't want stale options hanging around.
+  const triedButFoundNothing = matches.length === 0;
+  if (!triedButFoundNothing && visibleMatches.length === 0) return null;
 
   const usersById = Object.fromEntries(members.map((m) => [m.id, m]));
 
@@ -54,23 +61,30 @@ export default function ReactiveReply({
           layout
           className="w-full text-left rounded-2xl rounded-bl-md bg-white ring-1 ring-coral-100 px-3.5 py-2.5 text-[14px] text-ink shadow-bubble"
         >
-          <button
-            onClick={() => setOpen(!open)}
-            className="w-full flex items-center justify-between gap-2 text-left"
-          >
-            <span>
-              Found <b className="text-coral-600">{visibleMatches.length}</b> option
-              {visibleMatches.length === 1 ? "" : "s"} for{" "}
-              <span className="text-ink-muted">"{query}"</span>
-            </span>
-            <motion.span
-              animate={{ rotate: open ? 180 : 0 }}
-              transition={{ duration: 0.25 }}
-              className="text-[11px] text-ink-subtle"
+          {triedButFoundNothing ? (
+            <div className="text-ink-muted text-[13px] leading-snug">
+              Looked for <span className="text-ink">"{query}"</span> but couldn't find
+              anything I'm sure about. Try naming a venue or a day?
+            </div>
+          ) : (
+            <button
+              onClick={() => setOpen(!open)}
+              className="w-full flex items-center justify-between gap-2 text-left"
             >
-              ▾
-            </motion.span>
-          </button>
+              <span>
+                Found <b className="text-coral-600">{visibleMatches.length}</b> option
+                {visibleMatches.length === 1 ? "" : "s"} for{" "}
+                <span className="text-ink-muted">"{query}"</span>
+              </span>
+              <motion.span
+                animate={{ rotate: open ? 180 : 0 }}
+                transition={{ duration: 0.25 }}
+                className="text-[11px] text-ink-subtle"
+              >
+                ▾
+              </motion.span>
+            </button>
+          )}
 
           <AnimatePresence initial={false}>
             {open && (

@@ -40,7 +40,18 @@ CRITICAL — VENUE REALISM:
   The Stronghold (Lincoln Heights), Cliffs of Id,
   Tropicana Drive-In, Rooftop Cinema Club, Vidiots,
   UCLA campus venues if the message implies students.
-- If the message implies a different city or country, use real venues there
+- For activities not available IN LA itself (snow sports, deserts, Vegas, beaches farther
+  out, etc.), it is VALID to surface real drivable day/weekend-trip destinations from LA.
+  Examples of real ones you know:
+  Big Bear Mountain Resort (skiing/snowboarding), Mountain High (Wrightwood, skiing),
+  Mammoth Mountain (longer drive, skiing), Snow Valley,
+  Joshua Tree National Park, Death Valley National Park, Channel Islands NP,
+  Catalina Island (Avalon), Santa Catalina ferry from Long Beach,
+  Palm Springs / Coachella Valley venues, Las Vegas (The Strip, Allegiant Stadium, Sphere),
+  San Diego (Petco Park, Balboa Park), Santa Barbara (State Street, the harbor),
+  Joshua Tree town venues, Idyllwild, Lake Arrowhead, Solvang, Big Sur (long).
+  If you use a non-LA destination, set the city field accordingly (e.g. "Big Bear Lake, CA").
+- If the message implies a different city or country entirely, use real venues there
   (e.g., "Tokyo ramen": Ichiran Shibuya, Afuri Roppongi; "Paris": Le Comptoir, etc.)
 - If you DON'T KNOW a verifiably real venue for the activity, RETURN FEWER EVENTS. One real venue beats three fake ones. Empty array is acceptable.
 - NEVER invent or guess venue names. NEVER append "LA" or "Los Angeles" to a fictional name to make it sound real.

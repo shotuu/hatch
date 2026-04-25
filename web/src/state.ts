@@ -31,7 +31,8 @@ function normalizeSnapshot(raw: unknown): GroupSnapshot {
       o.current_proposal === null || o.current_proposal === undefined
         ? null
         : (o.current_proposal as GroupSnapshot["current_proposal"]),
-    expiry_days: typeof o.expiry_days === "number" ? o.expiry_days : EMPTY.expiry_days,
+    nest_warmth: typeof o.nest_warmth === "number" ? o.nest_warmth : EMPTY.nest_warmth,
+    nest_max: typeof o.nest_max === "number" ? o.nest_max : EMPTY.nest_max,
     last_booking: o.last_booking ?? null,
     ideas: Array.isArray(o.ideas) ? (o.ideas as GroupSnapshot["ideas"]) : [],
     users: Array.isArray(o.users) ? (o.users as GroupSnapshot["users"]) : [],
@@ -184,7 +185,12 @@ export function useGroupState() {
     setRejectedEventIds(new Set());
     setResolvedReactives(new Set());
   });
-  const setWarmth = wrap((days: number) => api.setWarmth(days));
+  const setWarmth = wrap((days: number) => {
+    // Guard against NaN / undefined (e.g. before first /state poll resolves) —
+    // those serialize to null and the backend rejects with 422.
+    const safe = Number.isFinite(days) ? Math.max(0, Math.round(days)) : 0;
+    return api.setWarmth(safe);
+  });
 
   const onWipe = async () => {
     setBusy(true);

@@ -44,6 +44,42 @@ class GraphState(TypedDict):
     reason: NotRequired[str]
 
 
+class IdeaDict(TypedDict):
+    """Wire shape of an idea (matches lib.group_state.Idea after asdict)."""
+
+    event: dict
+    source: str
+    score: int
+    seen_at: str
+    interested: list[str]
+    dismissed: bool
+
+
+class InteractionDict(TypedDict, total=False):
+    """A user action on an idea: 'I'm in' toggle from approve / propose."""
+
+    event_id: str
+    user_id: str
+    kind: str  # "interest_on" | "interest_off"
+
+
+class RankingState(TypedDict):
+    """State for the ideas-panel ranking workflow.
+
+    The node is pure: it takes the current ideas list plus a delta (new events
+    to add and/or interactions to apply) and returns the merged, re-sorted list.
+
+    No LLM call. Lives as a graph node purely for orchestration consistency —
+    every UI-visible state change for the panel runs through one place. Phase
+    8+ can drop in a `cluster_node` to merge near-duplicates without touching
+    any caller.
+    """
+
+    ideas: NotRequired[list[IdeaDict]]
+    additions: NotRequired[list[dict]]  # {event, source, base_score}
+    interactions: NotRequired[list[InteractionDict]]
+
+
 class ReactiveState(TypedDict):
     """State for the reactive (per-message) workflow.
 
