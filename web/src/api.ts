@@ -1,38 +1,30 @@
-import type { Event, Proposal } from "./types";
-
-export type ProposeResponse = Proposal | { ok: false; reason: string };
-
-export type BookResponse = {
-  ok: boolean;
-  event_id?: string;
-  calendars_written?: number;
-  expiry_reset_days?: number;
-  reason?: string;
-};
-
-export type ReactResponse = { matches: Event[] };
+import type { GroupSnapshot } from "./types";
 
 const BASE = "/api";
 
-export async function propose(): Promise<ProposeResponse> {
-  const r = await fetch(`${BASE}/propose`, { method: "POST" });
-  return r.json();
-}
-
-export async function book(eventId: string): Promise<BookResponse> {
-  const r = await fetch(`${BASE}/book`, {
+async function jpost(path: string, body?: unknown) {
+  const r = await fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event_id: eventId }),
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
   });
   return r.json();
 }
 
-export async function react(query: string): Promise<ReactResponse> {
-  const r = await fetch(`${BASE}/react`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
-  });
-  return r.json();
-}
+export const api = {
+  state: async (): Promise<GroupSnapshot> => (await fetch(`${BASE}/state`)).json(),
+
+  sendMessage: (user_id: string, text: string) =>
+    jpost("/send_message", { user_id, text }),
+
+  propose: () => jpost("/propose"),
+  approve: (user_id: string) => jpost("/approve", { user_id }),
+  dismissProposal: () => jpost("/dismiss_proposal"),
+  swapAlternate: () => jpost("/swap_alternate"),
+
+  dismissIdea: (event_id: string) => jpost("/dismiss_idea", { event_id }),
+  proposeIdea: (event_id: string) => jpost("/propose_idea", { event_id }),
+
+  reset: () => jpost("/reset"),
+  wipe: () => jpost("/cleanup"),
+};

@@ -6,15 +6,23 @@ type Props = {
   tripName: string;
   members: User[];
   expiryDays: number;
+  onOpenIdeas: () => void;
+  ideasCount: number;
 };
 
-export default function ChatHeader({ tripName, members, expiryDays }: Props) {
+export default function ChatHeader({
+  tripName,
+  members,
+  expiryDays,
+  onOpenIdeas,
+  ideasCount,
+}: Props) {
   const expiryStyle =
     expiryDays <= 7
       ? "bg-coral-100 text-coral-700 ring-coral-200"
       : expiryDays <= 14
       ? "bg-yolk/20 text-coral-700 ring-yolk/40"
-      : "bg-mint/15 text-mint-700 ring-mint/30 text-[#2F8F5A]";
+      : "bg-mint/15 text-[#2F8F5A] ring-mint/30";
 
   return (
     <header className="px-4 pt-2 pb-3 border-b border-ink-faint/40 bg-cream-50/95 backdrop-blur sticky top-0 z-10">
@@ -41,9 +49,19 @@ export default function ChatHeader({ tripName, members, expiryDays }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <HatchLogo size={18} />
-        </div>
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={onOpenIdeas}
+          className="relative p-1"
+          aria-label="Open ideas panel"
+        >
+          <HatchLogo size={20} />
+          {ideasCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 rounded-full bg-coral-500 text-white text-[9px] font-semibold flex items-center justify-center ring-2 ring-cream-50">
+              {ideasCount}
+            </span>
+          )}
+        </motion.button>
       </div>
 
       <motion.div

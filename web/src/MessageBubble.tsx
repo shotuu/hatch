@@ -10,7 +10,25 @@ type Props = {
 
 const SPRING = { type: "spring" as const, stiffness: 380, damping: 28, mass: 0.8 };
 
+function formatTs(ts: string) {
+  // Server emits ISO timestamps; seed messages emit relative strings like "3 weeks ago".
+  if (!/^\d/.test(ts)) return ts;
+  try {
+    const d = new Date(ts);
+    const now = Date.now();
+    const ageSec = (now - d.getTime()) / 1000;
+    if (ageSec < 60) return "now";
+    if (ageSec < 3600) return `${Math.round(ageSec / 60)}m`;
+    if (ageSec < 86400) return `${Math.round(ageSec / 3600)}h`;
+    return d.toLocaleDateString();
+  } catch {
+    return ts;
+  }
+}
+
 export default function MessageBubble({ author, text, ts, isMe }: Props) {
+  const tsLabel = formatTs(ts);
+
   if (isMe) {
     return (
       <motion.div
@@ -19,8 +37,8 @@ export default function MessageBubble({ author, text, ts, isMe }: Props) {
         transition={SPRING}
         className="px-3 py-1 flex flex-col items-end"
       >
-        <div className="text-[10px] text-ink-subtle mb-0.5 mr-2">{ts}</div>
-        <div className="max-w-[78%] rounded-[22px] rounded-br-md bg-gradient-to-br from-coral-500 to-coral-400 px-3.5 py-2 text-[15px] leading-snug text-white shadow-bubble">
+        <div className="text-[10px] text-ink-subtle mb-0.5 mr-2">{tsLabel}</div>
+        <div className="w-fit max-w-[78%] rounded-[22px] rounded-br-md bg-gradient-to-br from-coral-500 to-coral-400 px-3.5 py-2 text-[15px] leading-snug text-white shadow-bubble break-words">
           {text}
         </div>
       </motion.div>
@@ -40,11 +58,11 @@ export default function MessageBubble({ author, text, ts, isMe }: Props) {
       >
         {author.name[0]}
       </div>
-      <div className="flex flex-col">
+      <div className="flex flex-col items-start min-w-0">
         <div className="text-[10px] text-ink-subtle mb-0.5 ml-2">
-          {author.name} · {ts}
+          {author.name} · {tsLabel}
         </div>
-        <div className="max-w-[260px] rounded-[22px] rounded-bl-md bg-white px-3.5 py-2 text-[15px] leading-snug text-ink shadow-bubble ring-1 ring-ink-faint/30">
+        <div className="w-fit max-w-[260px] rounded-[22px] rounded-bl-md bg-white px-3.5 py-2 text-[15px] leading-snug text-ink shadow-bubble ring-1 ring-ink-faint/30 break-words">
           {text}
         </div>
       </div>

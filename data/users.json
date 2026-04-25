@@ -1,34 +1,26 @@
 [
   {
-    "id": "maya",
-    "name": "Maya",
-    "email": "maya@example.com",
-    "google_token_path": "data/tokens/maya.json",
+    "id": "daniel",
+    "name": "Daniel",
+    "email": "wuscdaniel@ucla.edu",
+    "google_token_path": "data/tokens/daniel.json",
     "avatar_color": "#f472b6",
     "interests": ["art", "ramen", "live_music", "hikes", "coffee"]
   },
   {
-    "id": "jordan",
-    "name": "Jordan",
-    "email": "jordan@example.com",
-    "google_token_path": "data/tokens/jordan.json",
+    "id": "jono",
+    "name": "Jono",
+    "email": "jonathanqli@ucla.edu",
+    "google_token_path": "data/tokens/jono.json",
     "avatar_color": "#60a5fa",
     "interests": ["basketball", "bars", "live_music", "bbq", "comedy"]
   },
   {
-    "id": "priya",
-    "name": "Priya",
-    "email": "priya@example.com",
-    "google_token_path": "data/tokens/priya.json",
+    "id": "andrew",
+    "name": "Andrew",
+    "email": "ajliu25@ucla.edu",
+    "google_token_path": "data/tokens/andrew.json",
     "avatar_color": "#34d399",
     "interests": ["art", "yoga", "coffee", "vegetarian", "hikes"]
-  },
-  {
-    "id": "you",
-    "name": "You",
-    "email": "you@example.com",
-    "google_token_path": "data/tokens/you.json",
-    "avatar_color": "#fbbf24",
-    "interests": ["basketball", "ramen", "live_music", "comedy", "bars"]
   }
 ]

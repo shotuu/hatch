@@ -6,7 +6,7 @@
     "duration_minutes": 120,
     "location": "Hauser & Wirth, Arts District, Los Angeles",
     "price": 0,
-    "url": "https://example.com/gallery-opening",
+    "url": "https://hauserwirth.com/locations/los-angeles",
     "tags": ["art", "gallery", "free", "indoor"]
   },
   {
@@ -16,7 +16,7 @@
     "duration_minutes": 180,
     "location": "Little Tokyo, Los Angeles",
     "price": 15,
-    "url": "https://example.com/ramen-fest",
+    "url": "https://www.ramenhood.com/festival",
     "tags": ["ramen", "food", "festival", "outdoor"]
   },
   {
@@ -26,8 +26,8 @@
     "duration_minutes": 180,
     "location": "Crypto.com Arena, Downtown LA",
     "price": 85,
-    "url": "https://example.com/lakers-warriors",
-    "tags": ["basketball", "sports", "ticketed"]
+    "url": "https://www.nba.com/lakers/tickets",
+    "tags": ["basketball", "lakers", "sports", "ticketed", "indoor"]
   },
   {
     "id": "evt_004",
@@ -36,7 +36,7 @@
     "duration_minutes": 90,
     "location": "Runyon Canyon Park, Hollywood",
     "price": 0,
-    "url": "https://example.com/runyon-hike",
+    "url": "https://www.laparks.org/runyon",
     "tags": ["hikes", "outdoor", "free", "sunset"]
   },
   {
@@ -46,7 +46,7 @@
     "duration_minutes": 120,
     "location": "The Comedy Store, West Hollywood",
     "price": 25,
-    "url": "https://example.com/comedy-store",
+    "url": "https://thecomedystore.com/shows",
     "tags": ["comedy", "bars", "live_music", "indoor"]
   },
   {
@@ -56,37 +56,37 @@
     "duration_minutes": 240,
     "location": "The Roof on Wilshire, Beverly Hills",
     "price": 20,
-    "url": "https://example.com/rooftop-dj",
+    "url": "https://hotelwilshire.com/the-roof",
     "tags": ["live_music", "bars", "outdoor", "nightlife"]
   },
   {
     "id": "evt_007",
-    "title": "Farmers Market Brunch — Grand Central",
+    "title": "Grand Central Market Brunch",
     "datetime": "2026-04-26T10:00:00-07:00",
     "duration_minutes": 120,
     "location": "Grand Central Market, DTLA",
     "price": 25,
-    "url": "https://example.com/grand-central-brunch",
-    "tags": ["food", "coffee", "vegetarian", "outdoor"]
+    "url": "https://grandcentralmarket.com",
+    "tags": ["food", "coffee", "brunch", "vegetarian", "outdoor"]
   },
   {
     "id": "evt_008",
     "title": "Yoga in Griffith Park",
     "datetime": "2026-04-26T09:00:00-07:00",
     "duration_minutes": 60,
-    "location": "Griffith Park, Los Angeles",
+    "location": "Griffith Park, Los Feliz",
     "price": 0,
-    "url": "https://example.com/griffith-yoga",
+    "url": "https://www.laparks.org/griffithpark",
     "tags": ["yoga", "outdoor", "free", "morning"]
   },
   {
     "id": "evt_009",
-    "title": "BBQ & Bourbon Night — Culver City",
+    "title": "BBQ & Bourbon Night — Maude's",
     "datetime": "2026-04-25T19:00:00-07:00",
     "duration_minutes": 180,
     "location": "Maude's Liquor Bar, Culver City",
     "price": 55,
-    "url": "https://example.com/bbq-bourbon",
+    "url": "https://maudesliquor.com",
     "tags": ["bbq", "food", "bars", "indoor"]
   },
   {
@@ -96,7 +96,7 @@
     "duration_minutes": 150,
     "location": "Silver Lake, Los Angeles",
     "price": 30,
-    "url": "https://example.com/coffee-crawl",
+    "url": "https://laist.com/coffee-crawl",
     "tags": ["coffee", "food", "outdoor", "walking"]
   },
   {
@@ -106,7 +106,7 @@
     "duration_minutes": 180,
     "location": "LACMA, Mid-Wilshire",
     "price": 25,
-    "url": "https://example.com/lacma-after-hours",
+    "url": "https://www.lacma.org/event/after-hours",
     "tags": ["art", "gallery", "live_music", "indoor"]
   },
   {
@@ -116,7 +116,137 @@
     "duration_minutes": 210,
     "location": "Dodger Stadium, Los Angeles",
     "price": 45,
-    "url": "https://example.com/dodgers-giants",
-    "tags": ["sports", "outdoor", "ticketed"]
+    "url": "https://www.mlb.com/dodgers/tickets",
+    "tags": ["dodgers", "baseball", "sports", "outdoor", "ticketed"]
+  },
+  {
+    "id": "evt_013",
+    "title": "Smorgasburg LA — Sunday Food Market",
+    "datetime": "2026-04-26T10:00:00-07:00",
+    "duration_minutes": 360,
+    "location": "ROW DTLA, Downtown LA",
+    "price": 0,
+    "url": "https://www.smorgasburg.com/la",
+    "tags": ["food", "outdoor", "free", "market", "brunch"]
+  },
+  {
+    "id": "evt_014",
+    "title": "Korean BBQ Night — Quarters",
+    "datetime": "2026-04-27T20:00:00-07:00",
+    "duration_minutes": 150,
+    "location": "Quarters Korean BBQ, Koreatown",
+    "price": 50,
+    "url": "https://quarterskbbq.com",
+    "tags": ["korean_bbq", "food", "ktown", "indoor"]
+  },
+  {
+    "id": "evt_015",
+    "title": "Hollywood Bowl — Indie Night",
+    "datetime": "2026-04-30T19:30:00-07:00",
+    "duration_minutes": 180,
+    "location": "Hollywood Bowl, Hollywood Hills",
+    "price": 65,
+    "url": "https://www.hollywoodbowl.com",
+    "tags": ["live_music", "concert", "outdoor", "ticketed"]
+  },
+  {
+    "id": "evt_016",
+    "title": "Jazz at LACMA",
+    "datetime": "2026-04-25T18:00:00-07:00",
+    "duration_minutes": 120,
+    "location": "LACMA Smidt Welcome Plaza",
+    "price": 0,
+    "url": "https://www.lacma.org/event/jazz",
+    "tags": ["live_music", "jazz", "free", "outdoor"]
+  },
+  {
+    "id": "evt_017",
+    "title": "Dim Sum Sunday — Sea Harbour",
+    "datetime": "2026-04-26T11:30:00-07:00",
+    "duration_minutes": 90,
+    "location": "Sea Harbour, Rosemead",
+    "price": 35,
+    "url": "https://seaharbour.com",
+    "tags": ["dim_sum", "food", "brunch", "indoor"]
+  },
+  {
+    "id": "evt_018",
+    "title": "Beach Day — El Matador State Beach",
+    "datetime": "2026-04-27T13:00:00-07:00",
+    "duration_minutes": 240,
+    "location": "El Matador State Beach, Malibu",
+    "price": 0,
+    "url": "https://www.parks.ca.gov/elmatador",
+    "tags": ["beach", "outdoor", "free", "swimming"]
+  },
+  {
+    "id": "evt_019",
+    "title": "Improv Night — UCB Sunset",
+    "datetime": "2026-04-26T21:00:00-07:00",
+    "duration_minutes": 90,
+    "location": "Upright Citizens Brigade, Sunset Blvd",
+    "price": 12,
+    "url": "https://franklin.ucbtheatre.com",
+    "tags": ["comedy", "improv", "indoor", "cheap"]
+  },
+  {
+    "id": "evt_020",
+    "title": "Bouldering at Stronghold",
+    "datetime": "2026-04-27T18:30:00-07:00",
+    "duration_minutes": 120,
+    "location": "Stronghold Climbing Gym, Lincoln Heights",
+    "price": 30,
+    "url": "https://www.thestronghold.com",
+    "tags": ["climbing", "active", "indoor"]
+  },
+  {
+    "id": "evt_021",
+    "title": "Drive-In Movie — Tropicana",
+    "datetime": "2026-04-25T20:30:00-07:00",
+    "duration_minutes": 150,
+    "location": "Tropicana Drive-In, Hollywood",
+    "price": 18,
+    "url": "https://tropicanadrivein.com",
+    "tags": ["movies", "outdoor", "date_night"]
+  },
+  {
+    "id": "evt_022",
+    "title": "Speakeasy Cocktails — Apotheke",
+    "datetime": "2026-04-26T21:00:00-07:00",
+    "duration_minutes": 180,
+    "location": "Apotheke, Chinatown",
+    "price": 35,
+    "url": "https://apothekedtla.com",
+    "tags": ["bars", "cocktails", "speakeasy", "indoor", "nightlife"]
+  },
+  {
+    "id": "evt_023",
+    "title": "MOCA Free Thursday",
+    "datetime": "2026-05-01T17:00:00-07:00",
+    "duration_minutes": 120,
+    "location": "MOCA Grand Avenue, Downtown LA",
+    "price": 0,
+    "url": "https://www.moca.org/visit",
+    "tags": ["art", "gallery", "free", "indoor"]
+  },
+  {
+    "id": "evt_024",
+    "title": "LAFC vs. Galaxy",
+    "datetime": "2026-04-27T19:30:00-07:00",
+    "duration_minutes": 150,
+    "location": "BMO Stadium, Exposition Park",
+    "price": 55,
+    "url": "https://www.lafc.com/tickets",
+    "tags": ["soccer", "sports", "outdoor", "ticketed"]
+  },
+  {
+    "id": "evt_025",
+    "title": "Sushi & Sake — Sushi Gen",
+    "datetime": "2026-04-28T19:00:00-07:00",
+    "duration_minutes": 120,
+    "location": "Sushi Gen, Little Tokyo",
+    "price": 70,
+    "url": "https://sushigen-littletokyo.com",
+    "tags": ["sushi", "food", "japanese", "indoor"]
   }
 ]

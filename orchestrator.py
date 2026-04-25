@@ -88,12 +88,45 @@ def book_plan_local(event_id: str) -> dict:
     if not event:
         return {"ok": False, "reason": "unknown event"}
 
-    # TODO(book): wire lib.integrations.google_calendar.insert_event for each user.
+    users = matching.load_users()
+    start = datetime.fromisoformat(event["datetime"])
+    end = start + timedelta(minutes=event["duration_minutes"])
+
+    written = 0
+    failures: list[str] = []
+    repo_root = Path(__file__).parent
+
+    try:
+        from lib.integrations import google_calendar
+    except Exception as e:
+        return {"ok": False, "reason": f"google_calendar import: {e}"}
+
+    for u in users:
+        token_path = repo_root / u["google_token_path"]
+        if not token_path.exists():
+            failures.append(f"{u['id']}: no token (run authorize)")
+            continue
+        try:
+            google_calendar.insert_event(
+                u["google_token_path"],
+                summary=f"Hatch · {event['title']}",
+                location=event["location"],
+                description=(
+                    f"Hatched by your group chat.\n\n{event.get('url', '')}"
+                ),
+                start=start,
+                end=end,
+            )
+            written += 1
+        except Exception as e:
+            failures.append(f"{u['id']}: {e}")
+
     return {
-        "ok": True,
+        "ok": written > 0,
         "event_id": event_id,
-        "calendars_written": 4,
+        "calendars_written": written,
         "expiry_reset_days": 30,
+        "failures": failures,
     }
 
 
