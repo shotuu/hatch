@@ -31,6 +31,10 @@ class BookRequest(BaseModel):
     event_id: str
 
 
+class ReactRequest(BaseModel):
+    query: str
+
+
 @app.get("/health")
 def health() -> dict:
     return {"ok": True}
@@ -54,6 +58,21 @@ def propose() -> dict:
 @app.post("/book")
 def book(req: BookRequest) -> dict:
     return orchestrator.book_plan(req.event_id)
+
+
+@app.post("/react")
+def react(req: ReactRequest) -> dict:
+    """Reactive mode — match a free-text query against curated events."""
+    q = req.query.lower().strip()
+    if not q:
+        return {"matches": []}
+    terms = [t for t in q.split() if len(t) > 2]
+    matches = []
+    for e in matching.load_events():
+        haystack = f"{e['title']} {' '.join(e['tags'])}".lower()
+        if any(t in haystack for t in terms):
+            matches.append(e)
+    return {"matches": matches[:3]}
 
 
 if __name__ == "__main__":

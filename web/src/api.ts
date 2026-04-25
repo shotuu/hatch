@@ -1,19 +1,6 @@
-export type ProposeResponse =
-  | {
-      ok: true;
-      window: { start: string; end: string };
-      event: {
-        id: string;
-        title: string;
-        datetime: string;
-        location: string;
-        price: number;
-        tags: string[];
-      };
-      alternates: ProposeResponse extends { ok: true } ? any[] : never;
-      users: { id: string; name: string }[];
-    }
-  | { ok: false; reason: string };
+import type { Event, Proposal } from "./types";
+
+export type ProposeResponse = Proposal | { ok: false; reason: string };
 
 export type BookResponse = {
   ok: boolean;
@@ -22,6 +9,8 @@ export type BookResponse = {
   expiry_reset_days?: number;
   reason?: string;
 };
+
+export type ReactResponse = { matches: Event[] };
 
 const BASE = "/api";
 
@@ -35,6 +24,15 @@ export async function book(eventId: string): Promise<BookResponse> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ event_id: eventId }),
+  });
+  return r.json();
+}
+
+export async function react(query: string): Promise<ReactResponse> {
+  const r = await fetch(`${BASE}/react`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
   });
   return r.json();
 }
