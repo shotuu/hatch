@@ -44,6 +44,7 @@ class ApproveRequest(BaseModel):
 
 class ProposeIdeaRequest(BaseModel):
     event_id: str
+    user_id: str | None = None
 
 
 class DismissIdeaRequest(BaseModel):
@@ -187,7 +188,7 @@ async def dismiss_idea(req: DismissIdeaRequest) -> dict:
 
 @app.post("/propose_idea")
 async def propose_idea(req: ProposeIdeaRequest) -> dict:
-    p = await store().propose_idea(req.event_id)
+    p = await store().propose_idea(req.event_id, proposer_user_id=req.user_id)
     if not p:
         raise HTTPException(404, "idea not found")
     return {"ok": True}

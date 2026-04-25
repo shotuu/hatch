@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ChatListView from "./ChatListView";
 import ChatView from "./ChatView";
 import type { GroupActions } from "./state";
@@ -14,13 +14,27 @@ type Props = {
  * phones in the demo can be on different screens simultaneously. */
 export default function PhoneApp({ viewer, actions }: Props) {
   const [view, setView] = useState<"chats" | "chat">("chat");
+  const messageCount = actions.snapshot.messages.length;
+  const [lastReadCount, setLastReadCount] = useState(messageCount);
+  const unreadCount =
+    view === "chat" ? 0 : Math.max(0, messageCount - lastReadCount);
+
+  useEffect(() => {
+    if (view === "chat") setLastReadCount(messageCount);
+  }, [messageCount, view]);
+
+  const openChat = () => {
+    setLastReadCount(messageCount);
+    setView("chat");
+  };
 
   return (
     <div className="relative w-full h-full overflow-hidden">
       <ChatListView
         viewer={viewer}
         snapshot={actions.snapshot}
-        onOpenChat={() => setView("chat")}
+        unreadCount={unreadCount}
+        onOpenChat={openChat}
       />
 
       <AnimatePresence initial={false}>

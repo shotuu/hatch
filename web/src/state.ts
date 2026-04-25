@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
-import type { GroupSnapshot } from "./types";
+import type { Event, GroupSnapshot } from "./types";
+
+export type Celebration = {
+  id: string;
+  text: string;
+  eventTitle: string;
+  ts: string;
+};
 
 const POLL_MS = 1000;
 
@@ -18,7 +25,13 @@ export function useGroupState() {
   const [snapshot, setSnapshot] = useState<GroupSnapshot>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [wipeStatus, setWipeStatus] = useState<string | null>(null);
+  const [plannedEvents, setPlannedEvents] = useState<Event[]>([]);
+  const [celebrations, setCelebrations] = useState<Celebration[]>([]);
+  const [reactiveSkips, setReactiveSkips] = useState<Record<string, string[]>>({});
+  const [rejectedEventIds, setRejectedEventIds] = useState<Set<string>>(new Set());
+  const [resolvedReactives, setResolvedReactives] = useState<Set<string>>(new Set());
   const stopRef = useRef(false);
+  const seenBookedRef = useRef<Set<string>>(new Set());
 
   // Polling loop
   useEffect(() => {
@@ -41,6 +54,28 @@ export function useGroupState() {
     };
   }, []);
 
+  // Watch for proposal transition into "booked" — capture as planned, then
+  // auto-dismiss the active proposal. The hatched-plan notification itself is
+  // now a backend timeline message so every phone sees it in the same place.
+  useEffect(() => {
+    const p = snapshot.current_proposal;
+    if (!p || p.status !== "booked") return;
+    if (seenBookedRef.current.has(p.id)) return;
+    seenBookedRef.current.add(p.id);
+
+    setPlannedEvents((prev) => [
+      p.event,
+      ...prev.filter((e) => e.id !== p.event.id),
+    ]);
+    // Remove from "Ideas in the air" — no longer being considered.
+    api.dismissIdea(p.event.id).catch(() => {});
+
+    const id = setTimeout(() => {
+      api.dismissProposal().catch(() => {});
+    }, 3500);
+    return () => clearTimeout(id);
+  }, [snapshot.current_proposal?.id, snapshot.current_proposal?.status]);
+
   // ─── action wrappers ───
   const wrap = useCallback(<T extends any[]>(fn: (...a: T) => Promise<any>) => {
     return async (...args: T) => {
@@ -59,11 +94,79 @@ export function useGroupState() {
   const send = wrap((userId: string, text: string) => api.sendMessage(userId, text));
   const triggerProactive = wrap(() => api.propose());
   const approve = wrap((userId: string) => api.approve(userId));
-  const dismissProposal = wrap(() => api.dismissProposal());
+  const dismissProposal = wrap(async () => {
+    const evtId = snapshot.current_proposal?.event.id;
+    await api.dismissProposal();
+    if (evtId) await api.dismissIdea(evtId).catch(() => {});
+  });
   const swapAlternate = wrap(() => api.swapAlternate());
   const dismissIdea = wrap((eventId: string) => api.dismissIdea(eventId));
-  const proposeIdea = wrap((eventId: string) => api.proposeIdea(eventId));
-  const reset = wrap(() => api.reset());
+  const proposeIdea = wrap((eventId: string, userId?: string) =>
+    api.proposeIdea(eventId, userId)
+  );
+
+  // Mark a reactive reply as "resolved" — i.e. one of its options got proposed
+  // to the group, so it shouldn't be re-pinned even if the resulting proposal
+  // is later dismissed.
+  const proposeReactiveOption = (
+    eventId: string,
+    reactiveId: string,
+    userId: string,
+  ) => {
+    setResolvedReactives((prev) => {
+      if (prev.has(reactiveId)) return prev;
+      const next = new Set(prev);
+      next.add(reactiveId);
+      return next;
+    });
+    return proposeIdea(eventId, userId);
+  };
+
+  const skipReactiveOption = useCallback(
+    (eventId: string, userId: string) => {
+      setRejectedEventIds((prev) => {
+        if (prev.has(eventId)) return prev;
+        const next = new Set(prev);
+        next.add(eventId);
+        return next;
+      });
+      setReactiveSkips((prev) => {
+        const current = prev[eventId] || [];
+        if (current.includes(userId)) return prev;
+        return { ...prev, [eventId]: [...current, userId] };
+      });
+      api.dismissIdea(eventId).catch(() => {});
+    },
+    [],
+  );
+  const skipProposal = wrap(async (userId: string) => {
+    const evtId = snapshot.current_proposal?.event.id;
+    if (evtId) {
+      setRejectedEventIds((prev) => {
+        if (prev.has(evtId)) return prev;
+        const next = new Set(prev);
+        next.add(evtId);
+        return next;
+      });
+      setReactiveSkips((prev) => {
+        const current = prev[evtId] || [];
+        if (current.includes(userId)) return prev;
+        return { ...prev, [evtId]: [...current, userId] };
+      });
+    }
+    setSnapshot((prev) => ({ ...prev, current_proposal: null }));
+    await api.dismissProposal();
+    if (evtId) await api.dismissIdea(evtId).catch(() => {});
+  });
+  const reset = wrap(async () => {
+    await api.reset();
+    seenBookedRef.current = new Set();
+    setPlannedEvents([]);
+    setCelebrations([]);
+    setReactiveSkips({});
+    setRejectedEventIds(new Set());
+    setResolvedReactives(new Set());
+  });
   const setWarmth = wrap((days: number) => api.setWarmth(days));
 
   const onWipe = async () => {
@@ -89,13 +192,21 @@ export function useGroupState() {
     snapshot,
     busy,
     wipeStatus,
+    plannedEvents,
+    celebrations,
+    reactiveSkips,
+    rejectedEventIds,
+    resolvedReactives,
     send,
     triggerProactive,
     approve,
     dismissProposal,
+    skipProposal,
     swapAlternate,
     dismissIdea,
     proposeIdea,
+    proposeReactiveOption,
+    skipReactiveOption,
     reset,
     setWarmth,
     onWipe,
