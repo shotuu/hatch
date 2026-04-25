@@ -5,7 +5,6 @@ Run: uvicorn server:app --reload --port 8000
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -37,7 +36,7 @@ class ReactRequest(BaseModel):
 
 @app.get("/health")
 def health() -> dict:
-    return {"ok": True}
+    return {"ok": True, "use_remote_agents": orchestrator.use_remote()}
 
 
 @app.get("/users")
@@ -51,13 +50,13 @@ def events() -> list[dict]:
 
 
 @app.post("/propose")
-def propose() -> dict:
-    return orchestrator.propose_plan()
+async def propose() -> dict:
+    return await orchestrator.propose_plan()
 
 
 @app.post("/book")
-def book(req: BookRequest) -> dict:
-    return orchestrator.book_plan(req.event_id)
+async def book(req: BookRequest) -> dict:
+    return await orchestrator.book_plan(req.event_id)
 
 
 @app.post("/react")

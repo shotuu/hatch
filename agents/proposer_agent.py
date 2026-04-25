@@ -7,12 +7,11 @@ Run locally for dev:
   python -m agents.proposer_agent
 
 Deploy to Agentverse: follow the Render example, then paste the agent address
-into ASI:One so judges can discover it.
+into .env (PROPOSER_AGENT_ADDRESS=agent1q...) and into ASI:One for discovery.
   https://innovationlab.fetch.ai/resources/docs/agentverse/deploy-agent-on-agentverse-via-render
 """
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from uuid import uuid4
 
@@ -26,6 +25,7 @@ from uagents_core.contrib.protocols.chat import (
 )
 
 from lib.integrations import agentverse, asi_one
+from lib.protocol import ProposerRequest, ProposerResponse
 
 load_dotenv()
 
@@ -50,41 +50,53 @@ SYSTEM_PROMPT = (
 )
 
 
-def compose_proposal(window_text: str, event: dict) -> str:
+def compose_proposal(req: ProposerRequest) -> str:
     user = (
-        f"Window: {window_text}\n"
-        f"Event: {event['title']} at {event['location']}, "
-        f"{event['datetime']}, ${event['price']}."
+        f"Window: {req.window.start_iso} to {req.window.end_iso}\n"
+        f"Event: {req.event.title} at {req.event.location}, "
+        f"{req.event.datetime}, ${req.event.price}.\n"
+        f"Group: {', '.join(req.user_names)}."
     )
     return asi_one.chat(SYSTEM_PROMPT, user, temperature=0.6, max_tokens=160)
+
+
+async def _ack(ctx: Context, sender: str, msg_id) -> None:
+    await ctx.send(
+        sender,
+        ChatAcknowledgement(timestamp=datetime.utcnow(), acknowledged_msg_id=msg_id),
+    )
 
 
 @chat_proto.on_message(ChatMessage)
 async def on_message(ctx: Context, sender: str, msg: ChatMessage) -> None:
     text = " ".join(c.text for c in msg.content if isinstance(c, TextContent))
-    ctx.logger.info(f"recv from {sender}: {text!r}")
+    ctx.logger.info(f"recv from {sender}: {text[:120]}")
+    await _ack(ctx, sender, msg.msg_id)
 
-    # Acknowledge receipt (required by Chat Protocol).
-    await ctx.send(
-        sender,
-        ChatAcknowledgement(
-            timestamp=datetime.utcnow(),
-            acknowledged_msg_id=msg.msg_id,
-        ),
-    )
-
-    # For now, echo a canned proposal. Orchestrator will pass structured context later.
-    reply_text = (
-        "You're all free Saturday 2–6pm. There's a free gallery opening in the "
-        "Arts District at 3pm — want me to set it up?"
-    )
+    # Try typed request first; fall back to a friendly canned reply for ASI:One discovery.
+    try:
+        req = ProposerRequest.model_validate_json(text)
+        try:
+            reply_text = compose_proposal(req)
+        except Exception as e:
+            ctx.logger.error(f"ASI:One failed: {e}")
+            reply_text = (
+                f"You're free {req.window.start_iso[:10]}. "
+                f"{req.event.title} at {req.event.location} — want me to set it up?"
+            )
+        payload = ProposerResponse(text=reply_text).model_dump_json()
+    except Exception:
+        payload = (
+            "Hi! I'm Hatch — the proposer agent. Send me a JSON ProposerRequest "
+            "and I'll compose a group-chat suggestion."
+        )
 
     await ctx.send(
         sender,
         ChatMessage(
             timestamp=datetime.utcnow(),
             msg_id=uuid4(),
-            content=[TextContent(type="text", text=reply_text)],
+            content=[TextContent(type="text", text=payload)],
         ),
     )
 
