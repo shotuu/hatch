@@ -229,11 +229,11 @@ class GroupState:
     async def set_warmth(self, days: int) -> int:
         """Directly set the nest-warmth value (0–30). Used by dev time controls."""
         async with self.lock:
-            self.expiry_days = max(0, min(30, int(days)))
-            return self.expiry_days
+            self.nest_warmth = max(0, min(30, int(days)))
+            return self.nest_warmth
 
     def is_cold(self, threshold: int = 3) -> bool:
-        return self.expiry_days <= threshold and self.current_proposal is None
+        return self.nest_warmth <= threshold and self.current_proposal is None
 
     async def reset(self) -> None:
         async with self.lock:

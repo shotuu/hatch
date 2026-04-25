@@ -19,7 +19,7 @@ export default function DemoPanel({ actions }: Props) {
     setWarmth,
     snapshot,
   } = actions;
-  const warmth = snapshot.expiry_days;
+  const warmth = snapshot.nest_warmth;
   const tier = nestTier(warmth);
 
   const [autoDecay, setAutoDecay] = useState(false);
