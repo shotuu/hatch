@@ -13,28 +13,49 @@ export type Event = {
   price: number;
   url: string;
   tags: string[];
+  _score?: number;
+};
+
+export type ServerMsg = {
+  id: string;
+  kind: "user" | "reactive";
+  ts: string;
+  author_id?: string | null;
+  text?: string | null;
+  parent_id?: string | null;
+  query?: string | null;
+  matches?: Event[];
 };
 
 export type Proposal = {
-  ok: true;
+  id: string;
   window: { start: string; end: string };
   event: Event;
   alternates: Event[];
-  users: { id: string; name: string }[];
+  approvals: Record<string, boolean>;
+  status: "pending" | "booking" | "booked" | "skipped";
+  created_at: string;
+  booking?: {
+    ok: boolean;
+    calendars_written?: number;
+    expiry_reset_days?: number;
+    failures?: string[];
+  } | null;
 };
 
-export type ChatMsg =
-  | {
-      kind: "user";
-      id: string;
-      author: User;
-      text: string;
-      ts: string;
-    }
-  | {
-      kind: "reactive";
-      id: string;
-      parentId: string;
-      query: string;
-      matches: Event[];
-    };
+export type Idea = {
+  event: Event;
+  source: "reactive" | "proposal" | "alternate";
+  score: number;
+  seen_at: string;
+  dismissed: boolean;
+};
+
+export type GroupSnapshot = {
+  messages: ServerMsg[];
+  current_proposal: Proposal | null;
+  expiry_days: number;
+  last_booking: any;
+  ideas: Idea[];
+  users: User[];
+};

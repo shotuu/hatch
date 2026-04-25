@@ -1,34 +1,20 @@
 import { AnimatePresence, motion } from "framer-motion";
 import HatchLogo from "./HatchLogo";
-import type { HatchState } from "./state";
+import type { GroupActions } from "./state";
 
-type Props = Pick<
-  HatchState,
-  | "busy"
-  | "wipeStatus"
-  | "triggerProactive"
-  | "triggerReactive"
-  | "reset"
-  | "onWipe"
->;
+type Props = {
+  actions: GroupActions;
+};
 
-export default function DemoPanel({
-  busy,
-  wipeStatus,
-  triggerProactive,
-  triggerReactive,
-  reset,
-  onWipe,
-}: Props) {
+export default function DemoPanel({ actions }: Props) {
+  const { busy, wipeStatus, triggerProactive, demoLakers, reset, onWipe } = actions;
   return (
     <aside className="w-[260px] shrink-0 rounded-3xl bg-cream-50 ring-1 ring-ink-faint/40 shadow-warmlg p-5 flex flex-col gap-5 self-start mt-12">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HatchLogo size={20} />
           <div>
-            <div className="text-[13px] font-semibold text-ink leading-tight">
-              Hatch
-            </div>
+            <div className="text-[13px] font-semibold text-ink leading-tight">Hatch</div>
             <div className="text-[10px] text-ink-subtle uppercase tracking-wider">
               dev console
             </div>
@@ -38,16 +24,16 @@ export default function DemoPanel({
       </header>
 
       <Section title="Demo flows">
-        <PrimaryBtn onClick={triggerProactive} busy={busy}>
+        <PrimaryBtn onClick={() => triggerProactive()} busy={busy}>
           Trigger silence
         </PrimaryBtn>
-        <GhostBtn onClick={triggerReactive} busy={busy}>
+        <GhostBtn onClick={() => demoLakers()} busy={busy}>
           Send Jono's Lakers msg
         </GhostBtn>
       </Section>
 
       <Section title="Chat state">
-        <GhostBtn onClick={reset} busy={busy}>
+        <GhostBtn onClick={() => reset()} busy={busy}>
           Reset chat
         </GhostBtn>
       </Section>
@@ -82,13 +68,7 @@ export default function DemoPanel({
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-ink-subtle font-semibold mb-2">
@@ -102,15 +82,7 @@ function Section({
 const baseBtn =
   "rounded-xl text-[13px] font-semibold py-2.5 px-3 disabled:opacity-40 transition-colors w-full text-left";
 
-function PrimaryBtn({
-  children,
-  onClick,
-  busy,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  busy: boolean;
-}) {
+function PrimaryBtn({ children, onClick, busy }: { children: React.ReactNode; onClick: () => void; busy: boolean }) {
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
@@ -124,15 +96,7 @@ function PrimaryBtn({
   );
 }
 
-function GhostBtn({
-  children,
-  onClick,
-  busy,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  busy: boolean;
-}) {
+function GhostBtn({ children, onClick, busy }: { children: React.ReactNode; onClick: () => void; busy: boolean }) {
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
@@ -145,15 +109,7 @@ function GhostBtn({
   );
 }
 
-function DangerBtn({
-  children,
-  onClick,
-  busy,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  busy: boolean;
-}) {
+function DangerBtn({ children, onClick, busy }: { children: React.ReactNode; onClick: () => void; busy: boolean }) {
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}

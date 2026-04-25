@@ -1,108 +1,75 @@
-import { useEffect, useRef, useState } from "react";
-import { propose, react, wipe, ProposeResponse } from "./api";
-import type { ChatMsg, User } from "./types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "./api";
+import type { GroupSnapshot } from "./types";
 
-// Keep in sync with data/users.json. TODO: fetch from /api/users instead.
-// `daniel` is the demo viewer — bubbles render right-side (isMe).
-export const USERS: User[] = [
-  { id: "daniel", name: "Daniel", color: "#F472B6" },
-  { id: "jono", name: "Jono", color: "#60A5FA" },
-  { id: "andrew", name: "Andrew", color: "#34D399" },
-];
+const POLL_MS = 1000;
 
-export const ME_ID = "daniel";
+const EMPTY: GroupSnapshot = {
+  messages: [],
+  current_proposal: null,
+  expiry_days: 6,
+  last_booking: null,
+  ideas: [],
+  users: [],
+};
 
-export const SEED_MESSAGES: ChatMsg[] = [
-  {
-    kind: "user",
-    id: "m1",
-    author: USERS[1],
-    text: "miss y'all 😭",
-    ts: "3 weeks ago",
-  },
-  {
-    kind: "user",
-    id: "m2",
-    author: USERS[2],
-    text: "we gotta do something soon fr",
-    ts: "3 weeks ago",
-  },
-  {
-    kind: "user",
-    id: "m3",
-    author: USERS[1],
-    text: "down whenever, lmk",
-    ts: "2 weeks ago",
-  },
-];
-
-export type HatchState = ReturnType<typeof useHatchState>;
-
-export function useHatchState() {
-  const [expiryDays, setExpiryDays] = useState(6);
-  const [messages, setMessages] = useState<ChatMsg[]>(SEED_MESSAGES);
-  const [proposal, setProposal] = useState<
-    Extract<ProposeResponse, { ok: true }> | null
-  >(null);
+export function useGroupState() {
+  const [snapshot, setSnapshot] = useState<GroupSnapshot>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [wipeStatus, setWipeStatus] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const stopRef = useRef(false);
 
+  // Polling loop
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages, proposal]);
-
-  const triggerProactive = async () => {
-    setBusy(true);
-    const r = await propose();
-    if ("ok" in r && r.ok) setProposal(r);
-    setBusy(false);
-  };
-
-  const triggerReactive = async () => {
-    setBusy(true);
-    const userMsg: ChatMsg = {
-      kind: "user",
-      id: `u${Date.now()}`,
-      author: USERS[1], // Jono
-      text: "anyone down for the Lakers game next week?",
-      ts: "now",
+    stopRef.current = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      if (stopRef.current) return;
+      try {
+        const s = await api.state();
+        setSnapshot(s);
+      } catch {
+        // ignore — server might be restarting
+      }
+      timer = setTimeout(tick, POLL_MS);
     };
-    setMessages((m) => [...m, userMsg]);
+    tick();
+    return () => {
+      stopRef.current = true;
+      clearTimeout(timer!);
+    };
+  }, []);
 
-    try {
-      const r = await react("lakers");
-      const reactiveMsg: ChatMsg = {
-        kind: "reactive",
-        id: `r${Date.now()}`,
-        parentId: userMsg.id,
-        query: "Lakers game",
-        matches: r.matches,
-      };
-      setTimeout(() => {
-        setMessages((m) => [...m, reactiveMsg]);
+  // ─── action wrappers ───
+  const wrap = useCallback(<T extends any[]>(fn: (...a: T) => Promise<any>) => {
+    return async (...args: T) => {
+      setBusy(true);
+      try {
+        await fn(...args);
+        // bump immediately for snappier UI
+        const s = await api.state();
+        setSnapshot(s);
+      } finally {
         setBusy(false);
-      }, 700);
-    } catch {
-      setBusy(false);
-    }
-  };
+      }
+    };
+  }, []);
 
-  const reset = () => {
-    setMessages(SEED_MESSAGES);
-    setProposal(null);
-    setExpiryDays(6);
-  };
+  const send = wrap((userId: string, text: string) => api.sendMessage(userId, text));
+  const triggerProactive = wrap(() => api.propose());
+  const approve = wrap((userId: string) => api.approve(userId));
+  const dismissProposal = wrap(() => api.dismissProposal());
+  const swapAlternate = wrap(() => api.swapAlternate());
+  const dismissIdea = wrap((eventId: string) => api.dismissIdea(eventId));
+  const proposeIdea = wrap((eventId: string) => api.proposeIdea(eventId));
+  const reset = wrap(() => api.reset());
 
   const onWipe = async () => {
     setBusy(true);
     setWipeStatus("wiping…");
     try {
-      const r = await wipe();
-      setWipeStatus(`wiped ${r.total_deleted} event${r.total_deleted === 1 ? "" : "s"}`);
+      const r = await api.wipe();
+      setWipeStatus(`wiped ${r.total_deleted}`);
     } catch {
       setWipeStatus("failed");
     } finally {
@@ -111,21 +78,26 @@ export function useHatchState() {
     }
   };
 
-  const onBooked = (d: number) => setExpiryDays(d);
+  // Demo helper: send Jono's Lakers msg
+  const demoLakers = wrap(() =>
+    api.sendMessage("jono", "anyone down for the Lakers game next week?")
+  );
 
   return {
-    // data
-    expiryDays,
-    messages,
-    proposal,
+    snapshot,
     busy,
     wipeStatus,
-    scrollRef,
-    // handlers
+    send,
     triggerProactive,
-    triggerReactive,
+    approve,
+    dismissProposal,
+    swapAlternate,
+    dismissIdea,
+    proposeIdea,
     reset,
     onWipe,
-    onBooked,
+    demoLakers,
   };
 }
+
+export type GroupActions = ReturnType<typeof useGroupState>;

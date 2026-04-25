@@ -6,9 +6,10 @@ import type { Event } from "./types";
 type Props = {
   query: string;
   matches: Event[];
+  onProposeToGroup: (eventId: string) => void;
 };
 
-export default function ReactiveReply({ query, matches }: Props) {
+export default function ReactiveReply({ query, matches, onProposeToGroup }: Props) {
   const [open, setOpen] = useState(false);
 
   if (matches.length === 0) return null;
@@ -29,13 +30,14 @@ export default function ReactiveReply({ query, matches }: Props) {
           Hatch · just now
         </div>
 
-        <motion.button
+        <motion.div
           layout
-          onClick={() => setOpen(!open)}
-          whileTap={{ scale: 0.985 }}
           className="w-full text-left rounded-2xl rounded-bl-md bg-white ring-1 ring-coral-100 px-3.5 py-2.5 text-[14px] text-ink shadow-bubble"
         >
-          <motion.div layout className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => setOpen(!open)}
+            className="w-full flex items-center justify-between gap-2 text-left"
+          >
             <span>
               Found <b className="text-coral-600">{matches.length}</b> option
               {matches.length === 1 ? "" : "s"} for{" "}
@@ -48,7 +50,7 @@ export default function ReactiveReply({ query, matches }: Props) {
             >
               ▾
             </motion.span>
-          </motion.div>
+          </button>
 
           <AnimatePresence initial={false}>
             {open && (
@@ -80,20 +82,18 @@ export default function ReactiveReply({ query, matches }: Props) {
                           day: "numeric",
                         })}{" "}
                         ·{" "}
-                        <span
-                          className={
-                            e.price === 0
-                              ? "text-mint font-semibold"
-                              : "text-ink-muted"
-                          }
-                        >
+                        <span className={e.price === 0 ? "text-mint font-semibold" : "text-ink-muted"}>
                           {e.price === 0 ? "Free" : `$${e.price}`}
                         </span>
                       </div>
                       <div className="mt-2">
-                        <span className="inline-block rounded-full bg-coral-500 text-white text-[11px] font-semibold px-2.5 py-1">
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => onProposeToGroup(e.id)}
+                          className="rounded-full bg-coral-500 text-white text-[11px] font-semibold px-2.5 py-1 hover:bg-coral-600 transition-colors"
+                        >
                           Propose to group
-                        </span>
+                        </motion.button>
                       </div>
                     </motion.div>
                   ))}
@@ -101,7 +101,7 @@ export default function ReactiveReply({ query, matches }: Props) {
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.button>
+        </motion.div>
       </div>
     </motion.div>
   );

@@ -1,12 +1,15 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
 import BookingChecklist from "./BookingChecklist";
 import HatchLogo from "./HatchLogo";
-import { book, ProposeResponse } from "./api";
+import type { Proposal, User } from "./types";
 
 type Props = {
-  proposal: Extract<ProposeResponse, { ok: true }>;
-  onBooked: (days: number) => void;
+  proposal: Proposal;
+  viewer: User;
+  members: User[];
+  onApprove: () => void;
+  onSkip: () => void;
+  onSwap: () => void;
 };
 
 function formatWindow(startISO: string, endISO: string) {
@@ -18,40 +21,33 @@ function formatWindow(startISO: string, endISO: string) {
   return `${day} ${fmt(s)}–${fmt(e)}`;
 }
 
-export default function AgentMessage({ proposal, onBooked }: Props) {
-  const [state, setState] = useState<"idle" | "booking" | "booked">("idle");
+export default function AgentMessage({
+  proposal,
+  viewer,
+  members,
+  onApprove,
+  onSkip,
+  onSwap,
+}: Props) {
   const windowText = formatWindow(proposal.window.start, proposal.window.end);
-  const userNames = proposal.users.map((u) => u.name);
-
-  const onBook = async () => {
-    setState("booking");
-    await book(proposal.event.id);
-  };
-
-  const onChecklistDone = () => {
-    setState("booked");
-    onBooked(30);
-  };
-
   const eventTime = new Date(proposal.event.datetime).toLocaleTimeString([], {
     hour: "numeric",
     minute: "2-digit",
   });
+
+  const viewerApproved = !!proposal.approvals[viewer.id];
+  const approvedCount = Object.values(proposal.approvals).filter(Boolean).length;
+  const totalCount = Object.values(proposal.approvals).length;
 
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: -10, scale: 0.94 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        type: "spring",
-        stiffness: 320,
-        damping: 26,
-        mass: 0.9,
-      }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 320, damping: 26, mass: 0.9 }}
       className="mx-3 my-3 rounded-[22px] bg-gradient-to-br from-coral-50 via-cream-50 to-yolk/20 ring-1 ring-coral-200/70 p-3.5 shadow-warm relative overflow-hidden"
     >
-      {/* soft top sheen */}
       <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-white/60 to-transparent pointer-events-none" />
 
       <div className="flex items-center gap-1.5 mb-2 relative">
@@ -62,9 +58,9 @@ export default function AgentMessage({ proposal, onBooked }: Props) {
       </div>
 
       <div className="text-[14.5px] leading-snug text-ink relative">
-        Y'all are free <b className="text-ink">{windowText}</b>. I found
-        something good.
+        Y'all are free <b className="text-ink">{windowText}</b>.
         <motion.div
+          layout
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.18, duration: 0.4 }}
@@ -78,55 +74,105 @@ export default function AgentMessage({ proposal, onBooked }: Props) {
             <span className="text-ink-faint">·</span>
             <span>{eventTime}</span>
             <span className="text-ink-faint">·</span>
-            <span
-              className={
-                proposal.event.price === 0 ? "text-mint font-semibold" : ""
-              }
-            >
+            <span className={proposal.event.price === 0 ? "text-mint font-semibold" : ""}>
               {proposal.event.price === 0 ? "Free" : `$${proposal.event.price}`}
             </span>
           </div>
         </motion.div>
-        <div className="mt-2.5 text-ink">Want me to set it up?</div>
       </div>
 
+      {/* Approval row */}
+      {proposal.status === "pending" && (
+        <div className="mt-3 flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-ink-muted font-semibold">
+            Approvals
+          </span>
+          <div className="flex -space-x-1">
+            {members.map((m) => {
+              const ok = proposal.approvals[m.id];
+              return (
+                <motion.div
+                  key={m.id}
+                  animate={{ scale: ok ? 1.05 : 1 }}
+                  className={`relative w-6 h-6 rounded-full ring-2 ring-cream-50 flex items-center justify-center text-[10px] font-semibold text-white ${
+                    ok ? "" : "opacity-40 saturate-50"
+                  }`}
+                  style={{ background: m.color }}
+                  title={`${m.name} ${ok ? "approved" : "waiting"}`}
+                >
+                  {m.name[0]}
+                  {ok && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-mint text-white text-[8px] flex items-center justify-center ring-1 ring-cream-50">
+                      ✓
+                    </span>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+          <span className="ml-auto text-[11px] text-ink-muted">
+            {approvedCount}/{totalCount}
+          </span>
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
-        {state === "idle" && (
+        {proposal.status === "pending" && !viewerApproved && (
           <motion.div
-            key="idle"
+            key="action"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="mt-3 grid grid-cols-3 gap-2 relative"
+            className="mt-3 grid grid-cols-3 gap-2"
           >
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={onBook}
+              onClick={onApprove}
               className="col-span-2 rounded-full bg-coral-500 text-white text-[13.5px] font-semibold py-2.5 shadow-warm hover:bg-coral-600 transition-colors"
             >
-              Book it
+              I'm in
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
-              className="rounded-full bg-white ring-1 ring-ink-faint/50 text-[13.5px] py-2.5 text-ink-muted font-medium"
+              onClick={proposal.alternates.length ? onSwap : onSkip}
+              className="rounded-full bg-white ring-1 ring-ink-faint/50 text-[12px] py-2.5 text-ink-muted font-medium"
             >
-              Skip
+              {proposal.alternates.length ? "Other" : "Skip"}
             </motion.button>
           </motion.div>
         )}
 
-        {state === "booking" && (
+        {proposal.status === "pending" && viewerApproved && (
+          <motion.div
+            key="waiting"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="mt-3 rounded-2xl bg-coral-50 ring-1 ring-coral-200 px-3 py-2 text-[12.5px] text-coral-700 flex items-center gap-2"
+          >
+            <span className="w-4 h-4 rounded-full bg-coral-500 text-white flex items-center justify-center text-[10px]">
+              ✓
+            </span>
+            You're in. Waiting on{" "}
+            {members
+              .filter((m) => !proposal.approvals[m.id])
+              .map((m) => m.name)
+              .join(" & ") || "the rest"}…
+          </motion.div>
+        )}
+
+        {proposal.status === "booking" && (
           <motion.div
             key="booking"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <BookingChecklist userNames={userNames} onDone={onChecklistDone} />
+            <BookingChecklist userNames={members.map((m) => m.name)} onDone={() => {}} />
           </motion.div>
         )}
 
-        {state === "booked" && (
+        {proposal.status === "booked" && (
           <motion.div
             key="booked"
             initial={{ opacity: 0, y: 6, scale: 0.96 }}
@@ -138,7 +184,7 @@ export default function AgentMessage({ proposal, onBooked }: Props) {
               ✓
             </span>
             <span>
-              Done. <b>30 more days together</b> — chat is alive again.
+              Booked. <b>30 more days together</b> — chat is alive again.
             </span>
           </motion.div>
         )}

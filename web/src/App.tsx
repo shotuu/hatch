@@ -1,33 +1,32 @@
 import ChatView from "./ChatView";
 import DemoPanel from "./DemoPanel";
 import PhoneFrame from "./PhoneFrame";
-import { useHatchState } from "./state";
+import { useGroupState } from "./state";
 
 export default function App() {
-  const state = useHatchState();
+  const actions = useGroupState();
+  const { users } = actions.snapshot;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cream-100 via-cream-50 to-coral-50 cream-grain">
-      <div className="min-h-screen flex flex-col lg:flex-row items-center lg:items-start justify-center gap-8 p-6 lg:p-10">
-        <PhoneFrame>
-          <ChatView
-            expiryDays={state.expiryDays}
-            messages={state.messages}
-            proposal={state.proposal}
-            busy={state.busy}
-            scrollRef={state.scrollRef}
-            onBooked={state.onBooked}
-          />
-        </PhoneFrame>
+      <div className="min-h-screen flex flex-col xl:flex-row items-center xl:items-start justify-center gap-6 p-6 xl:p-10 overflow-x-auto">
+        {users.length > 0 ? (
+          <div className="flex flex-col xl:flex-row gap-6 items-center xl:items-start">
+            {users.map((u) => (
+              <PhoneFrame key={u.id} label={u.name}>
+                <ChatView viewer={u} actions={actions} />
+              </PhoneFrame>
+            ))}
+          </div>
+        ) : (
+          <PhoneFrame>
+            <div className="flex items-center justify-center h-full text-ink-subtle text-[13px]">
+              Loading…
+            </div>
+          </PhoneFrame>
+        )}
 
-        <DemoPanel
-          busy={state.busy}
-          wipeStatus={state.wipeStatus}
-          triggerProactive={state.triggerProactive}
-          triggerReactive={state.triggerReactive}
-          reset={state.reset}
-          onWipe={state.onWipe}
-        />
+        <DemoPanel actions={actions} />
       </div>
     </div>
   );
