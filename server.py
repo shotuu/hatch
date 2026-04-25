@@ -6,6 +6,7 @@ Most endpoints mutate the singleton GroupState. Clients GET /state every ~1s.
 """
 from __future__ import annotations
 
+import asyncio
 import os
 
 from dotenv import load_dotenv
@@ -14,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import orchestrator
-from lib import matching
+from lib import event_synthesis, matching
 from lib.group_state import store
 
 load_dotenv()
@@ -82,31 +83,21 @@ async def send_message(req: SendMessageRequest) -> dict:
         raise HTTPException(400, f"unknown user: {req.user_id}")
     msg = await store().send_message(req.user_id, req.text)
 
-    # Lightweight auto-reactive: if message looks like an activity query, surface matches.
-    text = req.text.lower()
-    if any(kw in text for kw in ["lakers", "concert", "game", "show", "yoga", "ramen", "art", "comedy", "hike", "brunch", "coffee", "bbq"]):
-        events = matching.load_events()
-        terms = [t for t in text.split() if len(t) > 2]
-        matches = [
-            e for e in events
-            if any(t in (e["title"] + " " + " ".join(e["tags"])).lower() for t in terms)
-        ][:3]
+    # Reactive surfacing — AI synthesis gates itself on activity intent.
+    try:
+        matches = await asyncio.to_thread(event_synthesis.find_reactive_matches, req.text)
         if matches:
             await store().add_reactive(parent_id=msg.id, query=req.text, matches=matches)
+    except Exception as e:
+        print(f"[reactive] failed: {e}")
 
     return {"ok": True, "message_id": msg.id}
 
 
 @app.post("/react")
 async def react(req: ReactRequest) -> dict:
-    """Manually trigger a reactive reply for a query (used by 'propose to group')."""
-    q = req.query.lower().strip()
-    events = matching.load_events()
-    terms = [t for t in q.split() if len(t) > 2]
-    matches = [
-        e for e in events
-        if any(t in (e["title"] + " " + " ".join(e["tags"])).lower() for t in terms)
-    ][:3]
+    """Manual reactive trigger (used by 'propose to group' on the panel side)."""
+    matches = await asyncio.to_thread(event_synthesis.find_reactive_matches, req.query)
     if matches:
         await store().add_reactive(parent_id=req.parent_id or "", query=req.query, matches=matches)
     return {"matches": matches}
