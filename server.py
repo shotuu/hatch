@@ -10,7 +10,7 @@ import asyncio
 import os
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -214,21 +214,28 @@ async def hide_idea(req: HideIdeaRequest) -> dict:
     return {"ok": True}
 
 
-@app.post("/propose_idea")
-async def propose_idea(req: ProposeIdeaRequest) -> dict:
+async def _verify_proposal_availability(event: dict, proposal_id: str) -> None:
+    """Run the Google Calendar freebusy check off the request path; if there's
+    a conflict, dismiss the proposal we just pinned. Keeps the UI snappy — the
+    pinned card appears immediately and only retracts in the rare conflict case."""
+    availability = await asyncio.to_thread(orchestrator.event_availability, event)
+    if availability.get("ok") and availability.get("available"):
+        return
     s = store()
-    idea = next((i for i in s.ideas if i.event.get("id") == req.event_id and not i.dismissed), None)
-    if idea:
-        availability = await asyncio.to_thread(orchestrator.event_availability, idea.event)
-        if not availability.get("ok"):
-            return {"ok": False, "reason": availability.get("reason", "calendar unavailable")}
-        if not availability.get("available"):
-            names = ", ".join(c["name"] for c in availability.get("conflicts", []))
-            return {"ok": False, "reason": f"calendar conflict for {names}"}
+    current = s.current_proposal
+    if current and current.id == proposal_id:
+        await s.skip_proposal()
 
+
+@app.post("/propose_idea")
+async def propose_idea(
+    req: ProposeIdeaRequest, background_tasks: BackgroundTasks
+) -> dict:
+    s = store()
     p = await s.propose_idea(req.event_id, proposer_user_id=req.user_id)
     if not p:
         raise HTTPException(404, "idea not found")
+    background_tasks.add_task(_verify_proposal_availability, p.event, p.id)
     return {"ok": True}
 
 
