@@ -103,17 +103,19 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
         <div className="absolute inset-x-0 top-0 z-20 pointer-events-none [&>*]:pointer-events-auto">
           <AnimatePresence>
             {proposalActive && current_proposal && (
-              <AgentMessage
-                key={current_proposal.id}
-                proposal={current_proposal}
-                viewer={viewer}
-                members={users}
-                collapsed={proposalCollapsed}
-                onToggleCollapse={() => setProposalCollapsed((v) => !v)}
-                onApprove={() => approve(viewer.id)}
-                onSkip={() => skipProposal(viewer.id)}
-                onSwap={() => swapAlternate()}
-              />
+              <div className="pointer-events-auto bg-cream-50 border-b border-ink-faint/30 shadow-warm pb-1">
+                <AgentMessage
+                  key={current_proposal.id}
+                  proposal={current_proposal}
+                  viewer={viewer}
+                  members={users}
+                  collapsed={proposalCollapsed}
+                  onToggleCollapse={() => setProposalCollapsed((v) => !v)}
+                  onApprove={() => approve(viewer.id)}
+                  onSkip={() => skipProposal(viewer.id)}
+                  onSwap={() => swapAlternate()}
+                />
+              </div>
             )}
           </AnimatePresence>
         </div>

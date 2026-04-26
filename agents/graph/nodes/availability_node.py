@@ -59,5 +59,9 @@ def availability_node(state: GraphState) -> GraphState:
         **state,
         "ok": True,
         "users": [{"id": u["id"], "name": u["name"]} for u in users],
+        "windows": [
+            {"start": window.start.isoformat(), "end": window.end.isoformat()}
+            for window in windows
+        ],
         "window": {"start": windows[0].start.isoformat(), "end": windows[0].end.isoformat()},
     }

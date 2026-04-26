@@ -14,6 +14,8 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
+from zoneinfo import ZoneInfo
 
 from lib import matching
 from lib.integrations import agentverse
@@ -31,6 +33,8 @@ from lib.protocol import (
     ProposerResponse,
     RankedEvent,
 )
+
+DEMO_TIME_ZONE = ZoneInfo("America/Los_Angeles")
 
 
 def use_remote() -> bool:
@@ -50,7 +54,36 @@ def _allow_mock_calendar() -> bool:
 def _parse_iso(value: str) -> datetime:
     if value.endswith("Z"):
         value = value[:-1] + "+00:00"
-    return datetime.fromisoformat(value)
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=DEMO_TIME_ZONE)
+    return parsed
+
+
+def _event_bounds(event: dict[str, Any] | RankedEvent) -> tuple[datetime, datetime]:
+    if isinstance(event, RankedEvent):
+        start = _parse_iso(event.datetime)
+        duration_minutes = event.duration_minutes
+    else:
+        start = _parse_iso(event["datetime"])
+        duration_minutes = event["duration_minutes"]
+    return start, start + timedelta(minutes=duration_minutes)
+
+
+def _window_for_event(event: dict[str, Any] | RankedEvent, windows: list[Window]) -> Window:
+    start, end = _event_bounds(event)
+    for window in windows:
+        if window.start <= start and window.end >= end:
+            return window
+    return windows[0]
+
+
+def _free_window_for_event(event: RankedEvent, windows: list[FreeWindow]) -> FreeWindow:
+    start, end = _event_bounds(event)
+    for window in windows:
+        if _parse_iso(window.start_iso) <= start and _parse_iso(window.end_iso) >= end:
+            return window
+    return windows[0]
 
 
 def _token_paths_for_users(users: list[dict]) -> dict[str, str]:
@@ -143,9 +176,13 @@ def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120
         return {"ok": False, "reason": "no events match"}
 
     top = ranked[0]
+    selected_window = _window_for_event(top, windows)
     return {
         "ok": True,
-        "window": {"start": windows[0].start.isoformat(), "end": windows[0].end.isoformat()},
+        "window": {
+            "start": selected_window.start.isoformat(),
+            "end": selected_window.end.isoformat(),
+        },
         "event": top,
         "alternates": ranked[1:3],
         "users": [{"id": u["id"], "name": u["name"]} for u in users],
@@ -241,16 +278,17 @@ async def propose_plan_remote(*, search_hours: int = 168, min_window_minutes: in
         return {"ok": False, "reason": "no events match"}
 
     top: RankedEvent = ev.ranked[0]
+    selected_window = _free_window_for_event(top, windows)
 
     prop: ProposerResponse = await client().request(
         agentverse.PROPOSER,
-        ProposerRequest(window=windows[0], event=top, user_names=[u["name"] for u in users]),
+        ProposerRequest(window=selected_window, event=top, user_names=[u["name"] for u in users]),
         ProposerResponse,
     )
 
     return {
         "ok": True,
-        "window": {"start": windows[0].start_iso, "end": windows[0].end_iso},
+        "window": {"start": selected_window.start_iso, "end": selected_window.end_iso},
         "event": top.model_dump(),
         "alternates": [e.model_dump() for e in ev.ranked[1:3]],
         "users": [{"id": u["id"], "name": u["name"]} for u in users],

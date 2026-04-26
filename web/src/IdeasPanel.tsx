@@ -26,6 +26,9 @@ const SOURCE_STYLE: Record<Idea["source"], string> = {
   alternate: "bg-yolk/20 text-coral-700 ring-yolk/40",
 };
 
+const DEMO_LOCALE = "en-US";
+const DEMO_TIME_ZONE = "America/Los_Angeles";
+
 export default function IdeasPanel({
   open,
   ideas,
@@ -134,15 +137,17 @@ export default function IdeasPanel({
                           </div>
                           <div className="text-[11px] text-ink-muted mt-1">
                             {e.location} ·{" "}
-                            {when.toLocaleDateString(undefined, {
+                            {when.toLocaleDateString(DEMO_LOCALE, {
                               weekday: "short",
                               month: "short",
                               day: "numeric",
+                              timeZone: DEMO_TIME_ZONE,
                             })}
                             {" · "}
-                            {when.toLocaleTimeString([], {
+                            {when.toLocaleTimeString(DEMO_LOCALE, {
                               hour: "numeric",
                               minute: "2-digit",
+                              timeZone: DEMO_TIME_ZONE,
                             })}
                           </div>
                         </motion.div>
@@ -258,10 +263,11 @@ function IdeaCard({ idea, index, showHide, onPropose, onDismiss }: IdeaCardProps
       </div>
       <div className="text-[11px] text-ink-muted">
         {e.location} ·{" "}
-        {when.toLocaleDateString(undefined, {
+        {when.toLocaleDateString(DEMO_LOCALE, {
           weekday: "short",
           month: "short",
           day: "numeric",
+          timeZone: DEMO_TIME_ZONE,
         })}{" "}
         ·{" "}
         <span className={e.price === 0 ? "text-mint font-semibold" : ""}>
