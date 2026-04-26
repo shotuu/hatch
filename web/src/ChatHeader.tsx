@@ -12,6 +12,7 @@ type Props = {
   ideasCount: number;
   plannedCount: number;
   onBack?: () => void;
+  onOpenSettings?: () => void;
 };
 
 export default function ChatHeader({
@@ -23,6 +24,7 @@ export default function ChatHeader({
   ideasCount,
   plannedCount,
   onBack,
+  onOpenSettings,
 }: Props) {
   const hasPlanned = plannedCount > 0;
   return (
@@ -37,7 +39,13 @@ export default function ChatHeader({
           ‹
         </motion.button>
 
-        <div className="flex flex-col items-center">
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={onOpenSettings}
+          disabled={!onOpenSettings}
+          aria-label={onOpenSettings ? `Open ${tripName} settings` : tripName}
+          className="flex flex-col items-center px-2 py-0.5 rounded-xl hover:bg-cream-100/60 transition-colors disabled:hover:bg-transparent"
+        >
           <div className="flex -space-x-2 mb-1">
             {members.map((m) => (
               <div key={m.id} className="relative">
@@ -51,11 +59,16 @@ export default function ChatHeader({
               </div>
             ))}
           </div>
-          <div className="text-[14px] font-semibold text-ink">{tripName}</div>
+          <div className="text-[14px] font-semibold text-ink flex items-center gap-1">
+            {tripName}
+            {onOpenSettings && (
+              <span className="text-ink-faint text-[11px] leading-none">›</span>
+            )}
+          </div>
           <div className="text-[10px] text-ink-subtle">
             {members.map((m) => m.name).join(" · ")}
           </div>
-        </div>
+        </motion.button>
 
         <motion.button
           whileTap={{ scale: 0.92 }}

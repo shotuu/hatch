@@ -14,6 +14,8 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
+from zoneinfo import ZoneInfo
 
 from lib import matching
 from lib.integrations import agentverse
@@ -32,6 +34,8 @@ from lib.protocol import (
     RankedEvent,
 )
 
+DEMO_TIME_ZONE = ZoneInfo("America/Los_Angeles")
+
 
 def use_remote() -> bool:
     return os.environ.get("USE_REMOTE_AGENTS", "0") == "1"
@@ -41,6 +45,90 @@ def use_remote() -> bool:
 
 def _mock_busy(users: list[dict], start: datetime, end: datetime) -> dict:
     return {u["id"]: [] for u in users}
+
+
+def _allow_mock_calendar() -> bool:
+    return os.environ.get("ALLOW_MOCK_CALENDAR", "0") == "1"
+
+
+def _parse_iso(value: str) -> datetime:
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=DEMO_TIME_ZONE)
+    return parsed
+
+
+def _event_bounds(event: dict[str, Any] | RankedEvent) -> tuple[datetime, datetime]:
+    if isinstance(event, RankedEvent):
+        start = _parse_iso(event.datetime)
+        duration_minutes = event.duration_minutes
+    else:
+        start = _parse_iso(event["datetime"])
+        duration_minutes = event["duration_minutes"]
+    return start, start + timedelta(minutes=duration_minutes)
+
+
+def _window_for_event(event: dict[str, Any] | RankedEvent, windows: list[Window]) -> Window:
+    start, end = _event_bounds(event)
+    for window in windows:
+        if window.start <= start and window.end >= end:
+            return window
+    return windows[0]
+
+
+def _free_window_for_event(event: RankedEvent, windows: list[FreeWindow]) -> FreeWindow:
+    start, end = _event_bounds(event)
+    for window in windows:
+        if _parse_iso(window.start_iso) <= start and _parse_iso(window.end_iso) >= end:
+            return window
+    return windows[0]
+
+
+def _token_paths_for_users(users: list[dict]) -> dict[str, str]:
+    return {
+        u["id"]: u["google_token_path"]
+        for u in users
+        if (Path(__file__).parent / u["google_token_path"]).exists()
+    }
+
+
+def _calendar_busy(users: list[dict], start: datetime, end: datetime) -> dict:
+    token_paths = _token_paths_for_users(users)
+    missing = [u["id"] for u in users if u["id"] not in token_paths]
+    if missing:
+        if _allow_mock_calendar():
+            return _mock_busy(users, start, end)
+        raise RuntimeError(f"missing Google Calendar token(s): {', '.join(missing)}")
+
+    from lib.integrations import google_calendar
+
+    return google_calendar.freebusy(token_paths, start, end)
+
+
+def event_availability(event: dict) -> dict:
+    """Return whether every demo member is free for a proposed event."""
+    users = matching.load_users()
+    start = _parse_iso(event["datetime"])
+    end = start + timedelta(minutes=event["duration_minutes"])
+    try:
+        busy = _calendar_busy(users, start, end)
+    except Exception as e:
+        return {"ok": False, "available": False, "reason": str(e), "conflicts": []}
+
+    conflicts = []
+    for u in users:
+        uid = u["id"]
+        if any(b_start < end and b_end > start for b_start, b_end in busy.get(uid, [])):
+            conflicts.append({"id": uid, "name": u["name"]})
+    return {
+        "ok": True,
+        "available": not conflicts,
+        "conflicts": conflicts,
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+    }
 
 
 def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120) -> dict:
@@ -70,33 +158,32 @@ def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120
     now = datetime.now(timezone.utc)
     horizon = now + timedelta(hours=search_hours)
 
-    token_paths = {
-        u["id"]: u["google_token_path"]
-        for u in users
-        if (Path(__file__).parent / u["google_token_path"]).exists()
-    }
-
     try:
-        if token_paths and len(token_paths) == len(users):
-            from lib.integrations import google_calendar
-            busy = google_calendar.freebusy(token_paths, now, horizon)
-        else:
-            busy = _mock_busy(users, now, horizon)
-    except Exception:
-        busy = _mock_busy(users, now, horizon)
+        busy = _calendar_busy(users, now, horizon)
+    except Exception as e:
+        return {"ok": False, "reason": f"calendar availability failed: {e}"}
+    try:
+        busy = _calendar_busy(users, now, horizon)
+    except Exception as e:
+        return {"ok": False, "reason": f"calendar availability failed: {e}"}
 
     windows = matching.find_overlap(busy, now, horizon, min_minutes=min_window_minutes)
     if not windows:
-        windows = [Window(now, horizon)]
+        return {"ok": False, "reason": "no shared calendar window found"}
+        return {"ok": False, "reason": "no shared calendar window found"}
 
     ranked = matching.rank_events(events, users, windows)
     if not ranked:
         return {"ok": False, "reason": "no events match"}
 
     top = ranked[0]
+    selected_window = _window_for_event(top, windows)
     return {
         "ok": True,
-        "window": {"start": windows[0].start.isoformat(), "end": windows[0].end.isoformat()},
+        "window": {
+            "start": selected_window.start.isoformat(),
+            "end": selected_window.end.isoformat(),
+        },
         "event": top,
         "alternates": ranked[1:3],
         "users": [{"id": u["id"], "name": u["name"]} for u in users],
@@ -128,7 +215,14 @@ def book_plan_local(event_id: str) -> dict:
         return {"ok": False, "reason": "unknown event"}
 
     users = matching.load_users()
-    start = datetime.fromisoformat(event["datetime"])
+    availability = event_availability(event)
+    if not availability.get("ok"):
+        return {"ok": False, "reason": availability.get("reason", "calendar unavailable")}
+    if not availability.get("available"):
+        names = ", ".join(c["name"] for c in availability.get("conflicts", []))
+        return {"ok": False, "reason": f"calendar conflict for {names}"}
+
+    start = _parse_iso(event["datetime"])
     end = start + timedelta(minutes=event["duration_minutes"])
 
     written = 0
@@ -187,7 +281,12 @@ async def propose_plan_remote(*, search_hours: int = 168, min_window_minutes: in
         ),
         CalendarResponse,
     )
-    windows = cal.windows or [FreeWindow(start_iso=now.isoformat(), end_iso=horizon.isoformat())]
+    if not cal.windows:
+        return {"ok": False, "reason": "no shared calendar window found"}
+    windows = cal.windows
+    if not cal.windows:
+        return {"ok": False, "reason": "no shared calendar window found"}
+    windows = cal.windows
 
     ev: EventResponse = await client().request(
         agentverse.EVENT,
@@ -198,16 +297,17 @@ async def propose_plan_remote(*, search_hours: int = 168, min_window_minutes: in
         return {"ok": False, "reason": "no events match"}
 
     top: RankedEvent = ev.ranked[0]
+    selected_window = _free_window_for_event(top, windows)
 
     prop: ProposerResponse = await client().request(
         agentverse.PROPOSER,
-        ProposerRequest(window=windows[0], event=top, user_names=[u["name"] for u in users]),
+        ProposerRequest(window=selected_window, event=top, user_names=[u["name"] for u in users]),
         ProposerResponse,
     )
 
     return {
         "ok": True,
-        "window": {"start": windows[0].start_iso, "end": windows[0].end_iso},
+        "window": {"start": selected_window.start_iso, "end": selected_window.end_iso},
         "event": top.model_dump(),
         "alternates": [e.model_dump() for e in ev.ranked[1:3]],
         "users": [{"id": u["id"], "name": u["name"]} for u in users],
@@ -268,15 +368,45 @@ def react_to_message(text: str, parent_id: str | None = None) -> dict:
           "reply": {"headline", "options"},  # UI-stable envelope (Phase 3+)
         }
     """
-    from agents.graph.workflow import reactive_graph
-
     try:
-        s = reactive_graph().invoke({"text": text, "parent_id": parent_id or ""})
+        if not should_react_to_message(text):
+            return {"should_react": False, "matches": [], "reply": {"headline": "", "options": []}}
+        return build_reactive_reply(text, parent_id)
+    except Exception as e:
+        print(f"[orchestrator] reactive graph failed: {e}")
+        return {"should_react": False, "matches": [], "reply": {"headline": "", "options": []}}
+
+
+def should_react_to_message(text: str) -> bool:
+    """Run only the reactive trigger gate."""
+    try:
+        from agents.graph.nodes.trigger_node import trigger_node
+
+        s = trigger_node({"text": text, "parent_id": ""})
+        return bool(s.get("should_react"))
+    except Exception as e:
+        print(f"[orchestrator] reactive trigger failed: {e}")
+        return False
+
+
+def build_reactive_reply(text: str, parent_id: str | None = None) -> dict:
+    """Run the reactive synthesis/format steps after the trigger has fired."""
+    try:
+        from agents.graph.nodes.event_synth_node import event_synth_node
+        from agents.graph.nodes.format_node import format_node
+
+        s = {
+            "text": text,
+            "parent_id": parent_id or "",
+            "should_react": True,
+        }
+        s = event_synth_node(s)
+        s = format_node(s)
         return {
-            "should_react": bool(s.get("should_react")),
+            "should_react": True,
             "matches": s.get("matches") or [],
             "reply": s.get("reply") or {"headline": "", "options": []},
         }
     except Exception as e:
-        print(f"[orchestrator] reactive graph failed: {e}")
+        print(f"[orchestrator] reactive synthesis failed: {e}")
         return {"should_react": False, "matches": [], "reply": {"headline": "", "options": []}}

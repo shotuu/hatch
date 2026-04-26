@@ -9,7 +9,23 @@ export type Celebration = {
   ts: string;
 };
 
+export type CalendarFixtureStatus = {
+  ok: boolean;
+  ready: boolean;
+  expected_total: number;
+  actual_total: number;
+  users: Array<{
+    id: string;
+    name: string;
+    ready: boolean;
+    expected_count: number;
+    actual_count: number;
+    issues: string[];
+  }>;
+};
+
 const POLL_MS = 1000;
+const CALENDAR_FIXTURE_POLL_MS = 10000;
 
 const EMPTY: GroupSnapshot = {
   messages: [],
@@ -18,6 +34,7 @@ const EMPTY: GroupSnapshot = {
   nest_max: 30,
   last_booking: null,
   ideas: [],
+  hatch_typing: false,
   users: [],
 };
 
@@ -35,6 +52,7 @@ function normalizeSnapshot(raw: unknown): GroupSnapshot {
     nest_max: typeof o.nest_max === "number" ? o.nest_max : EMPTY.nest_max,
     last_booking: o.last_booking ?? null,
     ideas: Array.isArray(o.ideas) ? (o.ideas as GroupSnapshot["ideas"]) : [],
+    hatch_typing: typeof o.hatch_typing === "boolean" ? o.hatch_typing : false,
     users: Array.isArray(o.users) ? (o.users as GroupSnapshot["users"]) : [],
   };
 }
@@ -43,6 +61,10 @@ export function useGroupState() {
   const [snapshot, setSnapshot] = useState<GroupSnapshot>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [wipeStatus, setWipeStatus] = useState<string | null>(null);
+  const [calendarFixtureStatus, setCalendarFixtureStatus] =
+    useState<CalendarFixtureStatus | null>(null);
+  const [calendarFixtureBusy, setCalendarFixtureBusy] = useState(false);
+  const [calendarFixtureMessage, setCalendarFixtureMessage] = useState<string | null>(null);
   const [plannedEvents, setPlannedEvents] = useState<Event[]>([]);
   const [celebrations, setCelebrations] = useState<Celebration[]>([]);
   const [reactiveSkips, setReactiveSkips] = useState<Record<string, string[]>>({});
@@ -71,6 +93,29 @@ export function useGroupState() {
       clearTimeout(timer!);
     };
   }, []);
+
+  const refreshCalendarFixtureStatus = useCallback(async () => {
+    try {
+      setCalendarFixtureStatus(await api.calendarDemoStatus());
+    } catch {
+      // ignore — server might be restarting
+    }
+  }, []);
+
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      if (stopped) return;
+      await refreshCalendarFixtureStatus();
+      timer = setTimeout(tick, CALENDAR_FIXTURE_POLL_MS);
+    };
+    tick();
+    return () => {
+      stopped = true;
+      clearTimeout(timer!);
+    };
+  }, [refreshCalendarFixtureStatus]);
 
   // Watch for proposal transition into "booked" — capture as planned, then
   // auto-dismiss the active proposal. The hatched-plan notification itself is
@@ -209,6 +254,36 @@ export function useGroupState() {
     }
   };
 
+  const seedCalendarFixtures = async () => {
+    setCalendarFixtureBusy(true);
+    setCalendarFixtureMessage("seeding…");
+    try {
+      const r = await api.seedCalendarDemo();
+      setCalendarFixtureStatus(r.status);
+      setCalendarFixtureMessage(`seeded ${r.created_total}`);
+    } catch {
+      setCalendarFixtureMessage("seed failed");
+    } finally {
+      setCalendarFixtureBusy(false);
+      setTimeout(() => setCalendarFixtureMessage(null), 3000);
+    }
+  };
+
+  const deleteCalendarFixtures = async () => {
+    setCalendarFixtureBusy(true);
+    setCalendarFixtureMessage("clearing…");
+    try {
+      const r = await api.deleteCalendarDemo();
+      setCalendarFixtureStatus(r.status);
+      setCalendarFixtureMessage(`cleared ${r.deleted_total}`);
+    } catch {
+      setCalendarFixtureMessage("clear failed");
+    } finally {
+      setCalendarFixtureBusy(false);
+      setTimeout(() => setCalendarFixtureMessage(null), 3000);
+    }
+  };
+
   // Demo helper: send Jono's Lakers msg
   const demoLakers = wrap(() =>
     api.sendMessage("jono", "anyone down for the Lakers game next week?")
@@ -218,6 +293,9 @@ export function useGroupState() {
     snapshot,
     busy,
     wipeStatus,
+    calendarFixtureStatus,
+    calendarFixtureBusy,
+    calendarFixtureMessage,
     plannedEvents,
     celebrations,
     reactiveSkips,
@@ -237,6 +315,8 @@ export function useGroupState() {
     reset,
     setWarmth,
     onWipe,
+    seedCalendarFixtures,
+    deleteCalendarFixtures,
     demoLakers,
   };
 }

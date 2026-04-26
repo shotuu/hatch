@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import AgentMessage from "./AgentMessage";
 import ChatHeader from "./ChatHeader";
+import GroupSettings from "./GroupSettings";
 import HatchLogo from "./HatchLogo";
 import IdeasPanel from "./IdeasPanel";
 import MessageBubble from "./MessageBubble";
@@ -33,7 +34,15 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
     skipReactiveOption,
     hideIdea,
   } = actions;
-  const { messages, current_proposal, nest_warmth, nest_max, users, ideas } = snapshot;
+  const {
+    messages,
+    current_proposal,
+    nest_warmth,
+    nest_max,
+    users,
+    ideas,
+    hatch_typing,
+  } = snapshot;
   const proposalActive =
     !!current_proposal && current_proposal.status !== "skipped";
   const proposedEventId = current_proposal?.event.id ?? null;
@@ -49,6 +58,7 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [ideasOpen, setIdeasOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [proposalCollapsed, setProposalCollapsed] = useState(false);
   const [conversationStart] = useState(() => formatPTNow());
 
@@ -86,25 +96,24 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
         ideasCount={visibleIdeasCount}
         plannedCount={plannedEvents.length}
         onBack={onBack}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <div className="flex-1 relative">
-        <div className="absolute inset-x-0 top-0 z-20 pointer-events-none">
+        <div className="absolute inset-x-0 top-0 z-20 pointer-events-none [&>*]:pointer-events-auto">
           <AnimatePresence>
             {proposalActive && current_proposal && (
-              <div className="pointer-events-auto bg-cream-50 border-b border-ink-faint/30 shadow-warm pb-1">
-                <AgentMessage
-                  key={current_proposal.id}
-                  proposal={current_proposal}
-                  viewer={viewer}
-                  members={users}
-                  collapsed={proposalCollapsed}
-                  onToggleCollapse={() => setProposalCollapsed((v) => !v)}
-                  onApprove={() => approve(viewer.id)}
-                  onSkip={() => skipProposal(viewer.id)}
-                  onSwap={() => swapAlternate()}
-                />
-              </div>
+              <AgentMessage
+                key={current_proposal.id}
+                proposal={current_proposal}
+                viewer={viewer}
+                members={users}
+                collapsed={proposalCollapsed}
+                onToggleCollapse={() => setProposalCollapsed((v) => !v)}
+                onApprove={() => approve(viewer.id)}
+                onSkip={() => skipProposal(viewer.id)}
+                onSwap={() => swapAlternate()}
+              />
             )}
           </AnimatePresence>
         </div>
@@ -118,7 +127,7 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
               {conversationStart}
             </div>
             <AnimatePresence initial={false}>
-              {messages.map((m) => {
+              {messages.map((m, index) => {
                 if (m.kind === "celebration") {
                   return (
                     <motion.div
@@ -140,6 +149,9 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
                   );
                 }
                 if (m.kind === "user") {
+                  const prev = messages[index - 1];
+                  const grouped =
+                    prev?.kind === "user" && prev.author_id === m.author_id;
                   const author = (m.author_id && usersById[m.author_id]) || {
                     id: m.author_id || "?",
                     name: "?",
@@ -152,6 +164,7 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
                       text={m.text || ""}
                       ts={m.ts}
                       isMe={m.author_id === viewer.id}
+                      grouped={grouped}
                     />
                   );
                 }
@@ -180,7 +193,7 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
         </div>
 
         <AnimatePresence>
-          {busy && (
+          {hatch_typing && (
             <div className="absolute bottom-1 left-0 right-0 z-10 pointer-events-none">
               <TypingDots />
             </div>
@@ -206,6 +219,13 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
           setIdeasOpen(false);
         }}
         onDismiss={(eid) => hideIdea(eid, viewer.id)}
+      />
+
+      <GroupSettings
+        open={settingsOpen}
+        tripName="LA Friends"
+        members={users}
+        onClose={() => setSettingsOpen(false)}
       />
     </div>
   );

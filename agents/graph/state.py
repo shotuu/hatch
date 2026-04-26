@@ -33,6 +33,7 @@ class GraphState(TypedDict):
 
     # Outputs / intermediate
     users: NotRequired[list[dict]]
+    windows: NotRequired[list[WindowDict]]
     window: NotRequired[WindowDict]
     ranked: NotRequired[list[dict]]
     event: NotRequired[dict]
@@ -132,4 +133,3 @@ class ReactiveState(TypedDict):
     should_react: NotRequired[bool]
     matches: NotRequired[list[dict]]
     reply: NotRequired[dict]
-

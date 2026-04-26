@@ -6,13 +6,17 @@ Phase 5 — Source of truth for the proactive event:
      reactive matches from real chat messages, anything the user has voted on)
      ranked by `ranking_node`'s composite score. Reusing it means the proactive
      proposal feels coherent with what users have actually been seeing.
-  2. Fall back to `data/events.json` filtered against the availability window
+  2. Fall back to `data/events.json` filtered against the availability window(s)
      so the demo is never empty-handed even if the panel got fully wiped.
 
 When using a panel idea, the window is rebuilt from the idea's own
 `datetime` + `duration_minutes` so the proposal bubble's "you're free X to Y"
 line matches the event's actual time slot. (The mock free/busy treats everyone
 as free, so this is correct under the hackathon's demo conditions.)
+
+`main` merge: robust ISO parsing (`Z` suffix) and `_window_for_event` so ranked
+`events.json` picks sit inside a real overlap window when `availability_node`
+emits `windows`.
 """
 
 from __future__ import annotations
@@ -22,6 +26,12 @@ from datetime import datetime, timedelta
 from lib import matching
 
 from ..state import GraphState
+
+
+def _parse_iso(value: str) -> datetime:
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    return datetime.fromisoformat(value)
 
 
 def _top_panel_idea() -> dict | None:
@@ -50,12 +60,21 @@ def _top_panel_idea() -> dict | None:
 def _window_from_event(ev: dict) -> dict | None:
     """Derive a window dict from an event's datetime + duration."""
     try:
-        start = datetime.fromisoformat(ev["datetime"])
+        start = _parse_iso(ev["datetime"])
         duration = int(ev.get("duration_minutes") or 120)
         end = start + timedelta(minutes=duration)
         return {"start": start.isoformat(), "end": end.isoformat()}
     except Exception:
         return None
+
+
+def _window_for_event(event: dict, windows: list[matching.Window]) -> matching.Window:
+    start = _parse_iso(event["datetime"])
+    end = start + timedelta(minutes=int(event["duration_minutes"]))
+    for window in windows:
+        if window.start <= start and window.end >= end:
+            return window
+    return windows[0]
 
 
 def event_select_node(state: GraphState) -> GraphState:
@@ -79,21 +98,32 @@ def event_select_node(state: GraphState) -> GraphState:
     users = matching.load_users()
     events = matching.load_events()
 
+    raw_windows = state.get("windows")
     window = state.get("window")
-    if not window:
+    if raw_windows:
+        windows = [
+            matching.Window(_parse_iso(raw["start"]), _parse_iso(raw["end"]))
+            for raw in raw_windows
+        ]
+    elif window:
+        windows = [
+            matching.Window(_parse_iso(window["start"]), _parse_iso(window["end"])),
+        ]
+    else:
         return {**state, "ok": False, "reason": "missing window"}
-
-    start = datetime.fromisoformat(window["start"])
-    end = datetime.fromisoformat(window["end"])
-    windows = [matching.Window(start, end)]
 
     ranked = matching.rank_events(events, users, windows)
     if not ranked:
         return {**state, "ok": False, "reason": "no events match"}
 
+    selected_window = _window_for_event(ranked[0], windows)
     return {
         **state,
         "ok": True,
+        "window": {
+            "start": selected_window.start.isoformat(),
+            "end": selected_window.end.isoformat(),
+        },
         "ranked": ranked,
         "event": ranked[0],
         "alternates": ranked[1:3],

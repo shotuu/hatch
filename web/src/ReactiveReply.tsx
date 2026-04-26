@@ -3,6 +3,9 @@ import { useState } from "react";
 import HatchLogo from "./HatchLogo";
 import type { Event, User } from "./types";
 
+const DEMO_LOCALE = "en-US";
+const DEMO_TIME_ZONE = "America/Los_Angeles";
+
 type Props = {
   query: string;
   matches: Event[];
@@ -161,10 +164,11 @@ function OptionCard({
       </div>
       <div className="text-[11px] text-ink-muted mt-1">
         {event.location} ·{" "}
-        {new Date(event.datetime).toLocaleDateString(undefined, {
+        {new Date(event.datetime).toLocaleDateString(DEMO_LOCALE, {
           weekday: "short",
           month: "short",
           day: "numeric",
+          timeZone: DEMO_TIME_ZONE,
         })}{" "}
         ·{" "}
         <span

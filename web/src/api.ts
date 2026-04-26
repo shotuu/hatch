@@ -30,6 +30,9 @@ export const api = {
 
   reset: () => jpost("/reset"),
   wipe: () => jpost("/cleanup"),
+  calendarDemoStatus: async () => (await fetch(`${BASE}/calendar_demo/status`)).json(),
+  seedCalendarDemo: () => jpost("/calendar_demo/seed"),
+  deleteCalendarDemo: () => jpost("/calendar_demo/delete"),
 
   setWarmth: (days: number, auto_propose = true) =>
     jpost("/set_warmth", { days, auto_propose }),

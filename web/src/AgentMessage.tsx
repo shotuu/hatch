@@ -3,6 +3,9 @@ import BookingChecklist from "./BookingChecklist";
 import HatchLogo from "./HatchLogo";
 import type { Proposal, User } from "./types";
 
+const DEMO_LOCALE = "en-US";
+const DEMO_TIME_ZONE = "America/Los_Angeles";
+
 type Props = {
   proposal: Proposal;
   viewer: User;
@@ -17,9 +20,16 @@ type Props = {
 function formatWindow(startISO: string, endISO: string) {
   const s = new Date(startISO);
   const e = new Date(endISO);
-  const day = s.toLocaleDateString(undefined, { weekday: "long" });
+  const day = s.toLocaleDateString(DEMO_LOCALE, {
+    weekday: "long",
+    timeZone: DEMO_TIME_ZONE,
+  });
   const fmt = (d: Date) =>
-    d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    d.toLocaleTimeString(DEMO_LOCALE, {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: DEMO_TIME_ZONE,
+    });
   return `${day} ${fmt(s)}–${fmt(e)}`;
 }
 
@@ -34,9 +44,10 @@ export default function AgentMessage({
   onSwap,
 }: Props) {
   const windowText = formatWindow(proposal.window.start, proposal.window.end);
-  const eventTime = new Date(proposal.event.datetime).toLocaleTimeString([], {
+  const eventTime = new Date(proposal.event.datetime).toLocaleTimeString(DEMO_LOCALE, {
     hour: "numeric",
     minute: "2-digit",
+    timeZone: DEMO_TIME_ZONE,
   });
 
   const viewerApproved = !!proposal.approvals[viewer.id];
