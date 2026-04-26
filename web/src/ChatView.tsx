@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import AgentMessage from "./AgentMessage";
 import ChatHeader from "./ChatHeader";
+import GroupSettings from "./GroupSettings";
 import HatchLogo from "./HatchLogo";
 import IdeasPanel from "./IdeasPanel";
 import MessageBubble from "./MessageBubble";
@@ -46,6 +47,7 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [ideasOpen, setIdeasOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [proposalCollapsed, setProposalCollapsed] = useState(false);
   const [conversationStart] = useState(() => formatPTNow());
 
@@ -83,6 +85,7 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
         ideasCount={visibleIdeasCount}
         plannedCount={plannedEvents.length}
         onBack={onBack}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <div className="flex-1 relative">
@@ -204,6 +207,13 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
           setIdeasOpen(false);
         }}
         onDismiss={(eid) => dismissIdea(eid)}
+      />
+
+      <GroupSettings
+        open={settingsOpen}
+        tripName="LA Friends"
+        members={users}
+        onClose={() => setSettingsOpen(false)}
       />
     </div>
   );
