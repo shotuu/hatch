@@ -227,7 +227,7 @@ class GroupState:
                         id=f"c_{uuid4().hex[:8]}",
                         kind="celebration",
                         ts=self._now_iso(),
-                        text="the group hatched a plan",
+                        text="A plan was hatched! 🎉",
                         event_title=self.current_proposal.event.get("title"),
                     )
                 )
