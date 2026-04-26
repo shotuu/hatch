@@ -63,5 +63,6 @@ export type GroupSnapshot = {
   nest_max: number;
   last_booking: any;
   ideas: Idea[];
+  hatch_typing: boolean;
   users: User[];
 };

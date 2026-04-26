@@ -100,14 +100,20 @@ async def send_message(req: SendMessageRequest) -> dict:
     # feedback ("Hatch tried but couldn't find anything that fits") instead
     # of silent confusion when an off-LA prompt yields no real venue.
     try:
-        result = await asyncio.to_thread(orchestrator.react_to_message, req.text, msg.id)
+        should_react = await asyncio.to_thread(orchestrator.should_react_to_message, req.text)
+        if not should_react:
+            return {"ok": True, "message_id": msg.id, "should_react": False}
+
+        await store().set_hatch_typing(True)
+        result = await asyncio.to_thread(orchestrator.build_reactive_reply, req.text, msg.id)
         matches = result.get("matches") or []
-        if result.get("should_react"):
-            await store().add_reactive(parent_id=msg.id, query=req.text, matches=matches)
+        await store().add_reactive(parent_id=msg.id, query=req.text, matches=matches)
+        return {"ok": True, "message_id": msg.id, "should_react": True}
     except Exception as e:
         print(f"[reactive] failed: {e}")
-
-    return {"ok": True, "message_id": msg.id}
+        return {"ok": True, "message_id": msg.id, "should_react": False}
+    finally:
+        await store().set_hatch_typing(False)
 
 
 @app.post("/react")

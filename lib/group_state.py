@@ -76,6 +76,7 @@ class GroupState:
         self.nest_warmth: int = 6
         self.last_booking: dict | None = None
         self.ideas: list[Idea] = []  # ordered by score desc
+        self.hatch_typing = False
 
     # ─── snapshot ───
 
@@ -88,6 +89,7 @@ class GroupState:
             "expiry_days": self.nest_warmth,
             "last_booking": self.last_booking,
             "ideas": [asdict(i) for i in self.ideas if not i.dismissed],
+            "hatch_typing": self.hatch_typing,
             "users": [{"id": u["id"], "name": u["name"], "color": u["avatar_color"]} for u in matching.load_users()],
         }
 
@@ -186,6 +188,10 @@ class GroupState:
             for e in matches:
                 self._add_idea(e, source="reactive", score=int(e.get("_score", 0)) or 1)
             return msg
+
+    async def set_hatch_typing(self, value: bool) -> None:
+        async with self.lock:
+            self.hatch_typing = value
 
     async def set_proposal(self, *, window: dict, event: dict, alternates: list[dict]) -> Proposal:
         async with self.lock:
@@ -323,6 +329,7 @@ class GroupState:
             self.nest_warmth = 6
             self.last_booking = None
             self.ideas = []
+            self.hatch_typing = False
 
 
 # ──────────────────────── singleton + seed data ────────────────────────

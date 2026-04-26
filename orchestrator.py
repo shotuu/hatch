@@ -98,61 +98,6 @@ def event_availability(event: dict) -> dict:
     }
 
 
-def _allow_mock_calendar() -> bool:
-    return os.environ.get("ALLOW_MOCK_CALENDAR", "0") == "1"
-
-
-def _parse_iso(value: str) -> datetime:
-    if value.endswith("Z"):
-        value = value[:-1] + "+00:00"
-    return datetime.fromisoformat(value)
-
-
-def _token_paths_for_users(users: list[dict]) -> dict[str, str]:
-    return {
-        u["id"]: u["google_token_path"]
-        for u in users
-        if (Path(__file__).parent / u["google_token_path"]).exists()
-    }
-
-
-def _calendar_busy(users: list[dict], start: datetime, end: datetime) -> dict:
-    token_paths = _token_paths_for_users(users)
-    missing = [u["id"] for u in users if u["id"] not in token_paths]
-    if missing:
-        if _allow_mock_calendar():
-            return _mock_busy(users, start, end)
-        raise RuntimeError(f"missing Google Calendar token(s): {', '.join(missing)}")
-
-    from lib.integrations import google_calendar
-
-    return google_calendar.freebusy(token_paths, start, end)
-
-
-def event_availability(event: dict) -> dict:
-    """Return whether every demo member is free for a proposed event."""
-    users = matching.load_users()
-    start = _parse_iso(event["datetime"])
-    end = start + timedelta(minutes=event["duration_minutes"])
-    try:
-        busy = _calendar_busy(users, start, end)
-    except Exception as e:
-        return {"ok": False, "available": False, "reason": str(e), "conflicts": []}
-
-    conflicts = []
-    for u in users:
-        uid = u["id"]
-        if any(b_start < end and b_end > start for b_start, b_end in busy.get(uid, [])):
-            conflicts.append({"id": uid, "name": u["name"]})
-    return {
-        "ok": True,
-        "available": not conflicts,
-        "conflicts": conflicts,
-        "start": start.isoformat(),
-        "end": end.isoformat(),
-    }
-
-
 def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120) -> dict:
     # Optional LangGraph path (internal multi-agent orchestration).
     # This keeps the public FastAPI/UI contract identical, while letting you
@@ -366,15 +311,45 @@ def react_to_message(text: str, parent_id: str | None = None) -> dict:
           "reply": {"headline", "options"},  # UI-stable envelope (Phase 3+)
         }
     """
-    from agents.graph.workflow import reactive_graph
-
     try:
-        s = reactive_graph().invoke({"text": text, "parent_id": parent_id or ""})
+        if not should_react_to_message(text):
+            return {"should_react": False, "matches": [], "reply": {"headline": "", "options": []}}
+        return build_reactive_reply(text, parent_id)
+    except Exception as e:
+        print(f"[orchestrator] reactive graph failed: {e}")
+        return {"should_react": False, "matches": [], "reply": {"headline": "", "options": []}}
+
+
+def should_react_to_message(text: str) -> bool:
+    """Run only the reactive trigger gate."""
+    try:
+        from agents.graph.nodes.trigger_node import trigger_node
+
+        s = trigger_node({"text": text, "parent_id": ""})
+        return bool(s.get("should_react"))
+    except Exception as e:
+        print(f"[orchestrator] reactive trigger failed: {e}")
+        return False
+
+
+def build_reactive_reply(text: str, parent_id: str | None = None) -> dict:
+    """Run the reactive synthesis/format steps after the trigger has fired."""
+    try:
+        from agents.graph.nodes.event_synth_node import event_synth_node
+        from agents.graph.nodes.format_node import format_node
+
+        s = {
+            "text": text,
+            "parent_id": parent_id or "",
+            "should_react": True,
+        }
+        s = event_synth_node(s)
+        s = format_node(s)
         return {
-            "should_react": bool(s.get("should_react")),
+            "should_react": True,
             "matches": s.get("matches") or [],
             "reply": s.get("reply") or {"headline": "", "options": []},
         }
     except Exception as e:
-        print(f"[orchestrator] reactive graph failed: {e}")
+        print(f"[orchestrator] reactive synthesis failed: {e}")
         return {"should_react": False, "matches": [], "reply": {"headline": "", "options": []}}

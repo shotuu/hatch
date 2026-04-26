@@ -33,7 +33,15 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
     skipReactiveOption,
     hideIdea,
   } = actions;
-  const { messages, current_proposal, nest_warmth, nest_max, users, ideas } = snapshot;
+  const {
+    messages,
+    current_proposal,
+    nest_warmth,
+    nest_max,
+    users,
+    ideas,
+    hatch_typing,
+  } = snapshot;
   const proposalActive =
     !!current_proposal && current_proposal.status !== "skipped";
   const proposedEventId = current_proposal?.event.id ?? null;
@@ -180,7 +188,7 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
         </div>
 
         <AnimatePresence>
-          {busy && (
+          {hatch_typing && (
             <div className="absolute bottom-1 left-0 right-0 z-10 pointer-events-none">
               <TypingDots />
             </div>

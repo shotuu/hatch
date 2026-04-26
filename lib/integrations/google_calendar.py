@@ -80,13 +80,6 @@ def _dt(value: str) -> datetime:
     return datetime.fromisoformat(value)
 
 
-def _dt(value: str) -> datetime:
-    """Parse Google/JSON timestamps, including RFC3339 `Z` suffixes."""
-    if value.endswith("Z"):
-        value = value[:-1] + "+00:00"
-    return datetime.fromisoformat(value)
-
-
 def freebusy(
     token_paths_by_user: dict[str, str],
     time_min: datetime,
