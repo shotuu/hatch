@@ -44,10 +44,10 @@ def _mock_busy(users: list[dict], start: datetime, end: datetime) -> dict:
 
 
 def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120) -> dict:
-    # Optional LangGraph path (internal multi-agent orchestration).
-    # This keeps the public FastAPI/UI contract identical, while letting you
-    # truthfully say the pipeline is orchestrated via LangGraph.
-    if os.environ.get("USE_LANGGRAPH", "0") == "1":
+    # LangGraph path is the default since Phase 3 — internal multi-agent
+    # orchestration via the nodes in agents/graph/. Set USE_LANGGRAPH=0 to
+    # force the legacy direct path (kept around as a demo-safe escape hatch).
+    if os.environ.get("USE_LANGGRAPH", "1") == "1":
         from agents.graph.workflow import proposal_graph
 
         s = proposal_graph().invoke(
@@ -62,6 +62,7 @@ def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120
             "alternates": s.get("alternates", []),
             "users": s.get("users", []),
             "proposal_text": s.get("proposal_text"),
+            "headline": s.get("headline"),
         }
 
     users = matching.load_users()
@@ -103,6 +104,24 @@ def propose_plan_local(*, search_hours: int = 168, min_window_minutes: int = 120
 
 
 def book_plan_local(event_id: str) -> dict:
+    # LangGraph path is the default since Phase 6 — see agents/graph/workflow.py.
+    # The graph resolves event_id from the proposal/panel/events.json (so panel-
+    # sourced events like seed_lakers book correctly) and mocks per-user writes
+    # when a token is missing (so the demo never visibly fails on a setup gap).
+    if os.environ.get("USE_LANGGRAPH", "1") == "1":
+        from agents.graph.workflow import booking_graph
+
+        s = booking_graph().invoke({"event_id": event_id})
+        return {
+            "ok": bool(s.get("ok")),
+            "event_id": event_id,
+            "calendars_written": int(s.get("calendars_written", 0)),
+            "mocked": int(s.get("mocked", 0)),
+            "nest_restore": int(s.get("nest_restore", 30)),
+            "failures": s.get("failures", []),
+            "reason": s.get("reason"),
+        }
+
     events = {e["id"]: e for e in matching.load_events()}
     event = events.get(event_id)
     if not event:

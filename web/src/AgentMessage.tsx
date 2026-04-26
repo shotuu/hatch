@@ -124,7 +124,11 @@ export default function AgentMessage({
             className="overflow-hidden mt-2"
           >
       <div className="text-[14.5px] leading-snug text-ink relative">
-        Y'all are free <b className="text-ink">{windowText}</b>.
+        {proposal.headline ? (
+          <span className="block">{proposal.headline}</span>
+        ) : (
+          <>Y'all are free <b className="text-ink">{windowText}</b>.</>
+        )}
         <motion.div
           layout
           initial={{ opacity: 0, y: 4 }}

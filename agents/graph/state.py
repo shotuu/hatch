@@ -38,6 +38,9 @@ class GraphState(TypedDict):
     event: NotRequired[dict]
     alternates: NotRequired[list[dict]]
     proposal_text: NotRequired[str]
+    # ASI:One-generated friend-voice opener that renders above the structured
+    # event card. Optional — if absent, the bubble falls back to body-only.
+    headline: NotRequired[str]
 
     # Standard status envelope (keeps calling code simple)
     ok: NotRequired[bool]
@@ -78,6 +81,37 @@ class RankingState(TypedDict):
     ideas: NotRequired[list[IdeaDict]]
     additions: NotRequired[list[dict]]  # {event, source, base_score}
     interactions: NotRequired[list[InteractionDict]]
+
+
+class BookingState(TypedDict):
+    """State for the booking workflow (Phase 6).
+
+    Inputs:
+      - event_id: id of the event to book (resolved from proposal / panel /
+        events.json by `eligibility_node`)
+
+    Intermediate / outputs:
+      - event: the resolved event dict (title, datetime, duration, location)
+      - users: [{id, name, google_token_path}] for everyone in the group
+      - calendars_written: count of calendar entries that landed (real OR
+        demo-safe mocks for users without tokens — see calendar_writer_node)
+      - mocked: of those, how many were mocks. mocked == calendars_written
+        means no real Google writes happened (demo-safe path)
+      - failures: per-user error strings for real writes that threw
+      - nest_restore: target nest warmth value to set after a successful book
+    """
+
+    event_id: str
+    event: NotRequired[dict]
+    users: NotRequired[list[dict]]
+
+    calendars_written: NotRequired[int]
+    mocked: NotRequired[int]
+    failures: NotRequired[list[str]]
+    nest_restore: NotRequired[int]
+
+    ok: NotRequired[bool]
+    reason: NotRequired[str]
 
 
 class ReactiveState(TypedDict):

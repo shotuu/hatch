@@ -133,6 +133,7 @@ async def propose() -> dict:
         window=plan["window"],
         event=plan["event"],
         alternates=plan.get("alternates", []),
+        headline=plan.get("headline"),
     )
     return {"ok": True}
 
@@ -175,6 +176,7 @@ async def set_warmth(req: SetWarmthRequest) -> dict:
                 window=plan["window"],
                 event=plan["event"],
                 alternates=plan.get("alternates", []),
+                headline=plan.get("headline"),
             )
             auto_fired = True
     return {"ok": True, "warmth": new_value, "auto_proposed": auto_fired}

@@ -2,9 +2,13 @@
 
 We keep the graphs linear for hackathon reliability:
   proposal graph: availability → event_select → proposal → END
+  reactive graph: trigger → event_synth → format → END
+  ranking graph:  rank → END
+  booking graph:  eligibility → write_calendars → END
 
-Booking stays out of this graph intentionally. The product contract requires an
-explicit user action ("Book it") before any calendar writes happen.
+Booking is its own graph (not glued onto proposal) because the product
+contract requires an explicit user action ("Book it") between the two — no
+auto-bookings, ever.
 """
 
 from __future__ import annotations
@@ -13,8 +17,10 @@ from functools import lru_cache
 
 from langgraph.graph import END, StateGraph
 
-from .state import GraphState, RankingState, ReactiveState
+from .state import BookingState, GraphState, RankingState, ReactiveState
 from .nodes.availability_node import availability_node
+from .nodes.calendar_writer_node import calendar_writer_node
+from .nodes.eligibility_node import eligibility_node
 from .nodes.event_select_node import event_select_node
 from .nodes.event_synth_node import event_synth_node
 from .nodes.format_node import format_node
@@ -77,5 +83,30 @@ def ranking_graph():
     g.add_node("rank", ranking_node)
     g.set_entry_point("rank")
     g.add_edge("rank", END)
+    return g.compile()
+
+
+@lru_cache(maxsize=1)
+def booking_graph():
+    """Compiled graph for the booking workflow (Phase 6).
+
+    Pipeline: eligibility → write_calendars → END.
+
+      - eligibility: resolves the event_id to a real event (proposal / panel
+        / events.json), pulls the group member list. Fails fast if anything's
+        missing so write_calendars never runs on partial state.
+      - write_calendars: per-user Google Calendar inserts with a demo-safe
+        mock fallback when a user's OAuth token isn't on disk.
+
+    Lives separate from `proposal_graph` because the product contract
+    requires explicit user approval between proposing and booking.
+    """
+
+    g = StateGraph(BookingState)
+    g.add_node("eligibility", eligibility_node)
+    g.add_node("write_calendars", calendar_writer_node)
+    g.set_entry_point("eligibility")
+    g.add_edge("eligibility", "write_calendars")
+    g.add_edge("write_calendars", END)
     return g.compile()
 
