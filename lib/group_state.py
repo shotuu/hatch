@@ -80,6 +80,7 @@ class GroupState:
         self.last_booking: dict | None = None
         self.ideas: list[Idea] = []  # ordered by score desc
         self.hatch_typing = False
+        self.generation: int = 0
 
     # ─── snapshot ───
 
@@ -104,6 +105,9 @@ class GroupState:
 
     def _user_ids(self) -> list[str]:
         return [u["id"] for u in matching.load_users()]
+
+    def current_generation(self) -> int:
+        return self.generation
 
     # ─── ranking ───
     #
@@ -179,6 +183,8 @@ class GroupState:
 
     async def add_reactive(self, parent_id: str, query: str, matches: list[dict]) -> ChatMessage:
         async with self.lock:
+            if parent_id and not any(m.id == parent_id for m in self.messages):
+                raise ValueError("parent message no longer exists")
             msg = ChatMessage(
                 id=f"r_{uuid4().hex[:8]}",
                 kind="reactive",
@@ -203,8 +209,11 @@ class GroupState:
         event: dict,
         alternates: list[dict],
         headline: str | None = None,
-    ) -> Proposal:
+        generation: int | None = None,
+    ) -> Proposal | None:
         async with self.lock:
+            if generation is not None and generation != self.generation:
+                return None
             user_ids = self._user_ids()
             proposal = Proposal(
                 id=f"p_{uuid4().hex[:8]}",
@@ -242,8 +251,10 @@ class GroupState:
             if self.current_proposal:
                 self.current_proposal.status = "booking"
 
-    async def complete_booking(self, result: dict) -> None:
+    async def complete_booking(self, result: dict, generation: int | None = None) -> None:
         async with self.lock:
+            if generation is not None and generation != self.generation:
+                return
             if self.current_proposal:
                 self.current_proposal.status = "booked"
                 self.current_proposal.booking = result
@@ -335,11 +346,15 @@ class GroupState:
 
     async def reset(self) -> None:
         async with self.lock:
+            self.messages = []
             self.current_proposal = None
-            self.nest_warmth = 6
+            self.nest_warmth = 30
             self.last_booking = None
             self.ideas = []
             self.hatch_typing = False
+            self.generation += 1
+            # Restore the three seed messages + seed ideas so a reset feels
+            # like "fresh dead-chat ready for the demo," not an empty void.
             _seed_state(self)
 
 

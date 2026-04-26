@@ -100,7 +100,18 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
       />
 
       <div className="flex-1 relative">
-        <div className="absolute inset-x-0 top-0 z-20 pointer-events-none [&>*]:pointer-events-auto">
+        {/*
+          Only grant pointer-events to the pinned card while a proposal is
+          actively pinned. Without this, framer-motion keeps the AgentMessage
+          mounted (invisible) during its spring-exit and the [&>*]:pointer-events-auto
+          rule turns it into a ghost click-trap that swallows taps on the
+          "Propose to group" buttons in reactive replies below.
+        */}
+        <div
+          className={`absolute inset-x-0 top-0 z-20 pointer-events-none ${
+            proposalActive ? "[&>*]:pointer-events-auto" : ""
+          }`}
+        >
           <AnimatePresence>
             {proposalActive && current_proposal && (
               <AgentMessage
@@ -189,22 +200,23 @@ export default function ChatView({ viewer, actions, onBack }: Props) {
                 );
               })}
             </AnimatePresence>
+            {/*
+              Render typing dots inline as the last item in the message
+              list (not as an absolutely-positioned overlay) so they push
+              the previous bubble up instead of covering it. Sits inside
+              the same scroll container, follows the auto-scroll behavior.
+            */}
+            <AnimatePresence>
+              {hatch_typing && <TypingDots key="hatch-typing" />}
+            </AnimatePresence>
           </div>
         </div>
-
-        <AnimatePresence>
-          {hatch_typing && (
-            <div className="absolute bottom-1 left-0 right-0 z-10 pointer-events-none">
-              <TypingDots />
-            </div>
-          )}
-        </AnimatePresence>
       </div>
 
       <MessageInput
         viewerName={viewer.name}
         onSend={(text) => send(viewer.id, text)}
-        disabled={busy}
+        disabled={false}
       />
 
       <IdeasPanel

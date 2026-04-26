@@ -132,31 +132,47 @@ async def react(req: ReactRequest) -> dict:
 @app.post("/propose")
 async def propose() -> dict:
     """Run the orchestrator pipeline and stash the proposal in group state."""
+    s = store()
+    generation = s.current_generation()
     plan = await orchestrator.propose_plan()
     if not plan.get("ok"):
         return plan
-    await store().set_proposal(
+    proposal = await s.set_proposal(
         window=plan["window"],
         event=plan["event"],
         alternates=plan.get("alternates", []),
         headline=plan.get("headline"),
+        generation=generation,
     )
+    if not proposal:
+        return {"ok": False, "reset": True}
     return {"ok": True}
 
 
+async def _fire_booking_pipeline(event_id: str, generation: int) -> None:
+    """Run the booking flow off the request path so the last-approver's
+    "I'm in" tap returns instantly. Polling picks up the booking →
+    booked status transitions; BookingChecklist animates from there."""
+    s = store()
+    await s.mark_booking_in_progress()
+    result = await orchestrator.book_plan(event_id)
+    await s.complete_booking(result, generation=generation)
+
+
 @app.post("/approve")
-async def approve(req: ApproveRequest) -> dict:
+async def approve(req: ApproveRequest, background_tasks: BackgroundTasks) -> dict:
     s = store()
     p = await s.approve(req.user_id)
     if not p:
         raise HTTPException(400, "no active proposal")
 
     if s.all_approved():
-        # Fire booking
-        await s.mark_booking_in_progress()
-        result = await orchestrator.book_plan(p.event["id"])
-        await s.complete_booking(result)
-        return {"ok": True, "approved": True, "all_approved": True, "booking": result}
+        # Don't block the request on the calendar-write pipeline. The
+        # tapper sees their avatar flip immediately; status transitions
+        # (booking → booked) come in via the regular /state poll.
+        generation = s.current_generation()
+        background_tasks.add_task(_fire_booking_pipeline, p.event["id"], generation)
+        return {"ok": True, "approved": True, "all_approved": True, "booking": "scheduled"}
 
     return {"ok": True, "approved": True, "all_approved": False}
 
@@ -176,15 +192,17 @@ async def set_warmth(req: SetWarmthRequest) -> dict:
     new_value = await s.set_warmth(req.days)
     auto_fired = False
     if req.auto_propose and s.is_cold(threshold=3):
+        generation = s.current_generation()
         plan = await orchestrator.propose_plan()
         if plan.get("ok"):
-            await s.set_proposal(
+            proposal = await s.set_proposal(
                 window=plan["window"],
                 event=plan["event"],
                 alternates=plan.get("alternates", []),
                 headline=plan.get("headline"),
+                generation=generation,
             )
-            auto_fired = True
+            auto_fired = bool(proposal)
     return {"ok": True, "warmth": new_value, "auto_proposed": auto_fired}
 
 
@@ -237,7 +255,13 @@ async def propose_idea(
     p = await s.propose_idea(req.event_id, proposer_user_id=req.user_id)
     if not p:
         raise HTTPException(404, "idea not found")
-    background_tasks.add_task(_verify_proposal_availability, p.event, p.id)
+    # Intentionally NOT scheduling _verify_proposal_availability here.
+    # The user explicitly tapped "Propose to group" — silently retracting
+    # the pinned card on a freebusy hiccup or a calendar overlap with a
+    # just-booked event made the card disappear mid-demo. If there's a
+    # real conflict the group can swap or skip manually; we never want
+    # the agent to second-guess a deliberate user action.
+    _ = background_tasks  # kept in signature for future use
     return {"ok": True}
 
 
