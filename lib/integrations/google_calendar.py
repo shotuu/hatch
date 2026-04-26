@@ -29,6 +29,7 @@ load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 ROOT = Path(__file__).resolve().parent.parent.parent
+DEMO_TIME_ZONE_NAME = "America/Los_Angeles"
 
 
 def _client_config() -> dict:
@@ -91,6 +92,7 @@ def freebusy(
         body = {
             "timeMin": time_min.isoformat(),
             "timeMax": time_max.isoformat(),
+            "timeZone": DEMO_TIME_ZONE_NAME,
             "items": [{"id": "primary"}],
         }
         resp = svc.freebusy().query(body=body).execute()
@@ -177,8 +179,8 @@ def insert_event(
         "summary": summary,
         "location": location,
         "description": description,
-        "start": {"dateTime": start.isoformat()},
-        "end": {"dateTime": end.isoformat()},
+        "start": {"dateTime": start.isoformat(), "timeZone": DEMO_TIME_ZONE_NAME},
+        "end": {"dateTime": end.isoformat(), "timeZone": DEMO_TIME_ZONE_NAME},
         "extendedProperties": {
             "private": {HATCH_MARKER_KEY: HATCH_MARKER_VAL},
         },
@@ -191,8 +193,8 @@ def _demo_busy_body(user_id: str, fixture: dict, index: int) -> dict:
         "summary": fixture["summary"],
         "location": fixture["location"],
         "description": fixture["description"],
-        "start": {"dateTime": fixture["start"]},
-        "end": {"dateTime": fixture["end"]},
+        "start": {"dateTime": fixture["start"], "timeZone": DEMO_TIME_ZONE_NAME},
+        "end": {"dateTime": fixture["end"], "timeZone": DEMO_TIME_ZONE_NAME},
         "extendedProperties": {
             "private": {
                 HATCH_MARKER_KEY: DEMO_BUSY_MARKER_VAL,
@@ -215,7 +217,11 @@ def demo_busy_fixtures_for(user_id: str) -> list[dict]:
     ]
 
 
-def list_demo_busy_events(token_path: str) -> list[dict]:
+def _fixture_private(ev: dict) -> dict:
+    return ev.get("extendedProperties", {}).get("private", {})
+
+
+def list_demo_busy_events(token_path: str, *, user_id: str | None = None) -> list[dict]:
     svc = _service(token_path)
     resp = svc.events().list(
         calendarId="primary",
@@ -224,11 +230,19 @@ def list_demo_busy_events(token_path: str) -> list[dict]:
         orderBy="startTime",
         maxResults=2500,
     ).execute()
-    return resp.get("items", [])
+    items = resp.get("items", [])
+    if user_id is None:
+        return items
+    return [
+        ev
+        for ev in items
+        if _fixture_private(ev).get("fixture_set") == DEMO_BUSY_SET
+        and _fixture_private(ev).get("fixture_user") == user_id
+    ]
 
 
 def _event_matches_fixture(ev: dict, user_id: str, fixture: dict, index: int) -> bool:
-    private = ev.get("extendedProperties", {}).get("private", {})
+    private = _fixture_private(ev)
     start = ev.get("start", {}).get("dateTime")
     end = ev.get("end", {}).get("dateTime")
     if not start or not end:
@@ -249,7 +263,7 @@ def _event_matches_fixture(ev: dict, user_id: str, fixture: dict, index: int) ->
 
 def demo_busy_status(token_path: str, user_id: str) -> dict:
     expected = demo_busy_fixtures_for(user_id)
-    actual = list_demo_busy_events(token_path)
+    actual = list_demo_busy_events(token_path, user_id=user_id)
     issues: list[str] = []
 
     if len(actual) != len(expected):
@@ -280,7 +294,7 @@ def demo_busy_status(token_path: str, user_id: str) -> dict:
 
 def seed_demo_busy_events(token_path: str, user_id: str) -> dict:
     """Reset this user's demo busy blocks to the canonical order."""
-    deleted = delete_demo_busy_events(token_path)
+    deleted = delete_demo_busy_events(token_path, user_id=user_id)
     created = []
     svc = _service(token_path)
     for index, fixture in enumerate(demo_busy_fixtures_for(user_id)):
@@ -296,8 +310,8 @@ def seed_demo_busy_events(token_path: str, user_id: str) -> dict:
     }
 
 
-def delete_demo_busy_events(token_path: str) -> list[dict]:
-    items = list_demo_busy_events(token_path)
+def delete_demo_busy_events(token_path: str, *, user_id: str | None = None) -> list[dict]:
+    items = list_demo_busy_events(token_path, user_id=user_id)
     for ev in items:
         try:
             delete_event(token_path, ev["id"])
