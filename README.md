@@ -1,155 +1,272 @@
-# Hatch — LA Hacks 2026
+# Hatch
 
 > Plans, hatched.
 
-A group chat with a living **nest** — a warmth meter that cools during silence
-and is restored when the group books a plan together. An ambient multi-agent
-system watches the nest, surfaces real LA events that match everyone's
-calendars, and turns one tap into four Google Calendar bookings. The chat never
-dies — only the nest cools, and the agent's job is to keep it warm.
+Hatch is a group-chat planning prototype built for LA Hacks 2026. It gives a
+friend group's chat a living "nest" that cools during silence and warms back up
+when the group books a plan together.
 
-Calendars + curated LA events + a friend-voice proposer, glued together over
-Fetch.ai's Chat Protocol. See [CLAUDE.md](CLAUDE.md) for the full brief — it's
-the source of truth for scope and pitch.
+The prototype combines a phone-frame web UI, a FastAPI backend, LangGraph
+orchestration, Fetch.ai uAgents, ASI:One, curated LA event data, and Google
+Calendar writes. The core demo flow turns a cooling group chat into a concrete
+proposal and, after group approval, writes the event to each configured member's
+calendar.
 
-## Quickstart
+## What Works
+
+- Three hardcoded group members in a shared "LA Friends" chat.
+- A visible nest warmth meter from `0` to `30`.
+- Seeded dead-chat state for the demo, including "3 weeks ago" messages.
+- Reactive replies when a message mentions an activity, powered by ASI:One
+  event synthesis and rendered as foldable options in the chat.
+- Proactive proposals triggered manually or automatically when the nest cools.
+- Ranked "ideas in the air" panel with interest and hide signals.
+- Group approval flow with optimistic UI updates.
+- Booking pipeline that writes to Google Calendar when OAuth tokens exist and
+  mock-confirms missing-token users for demo reliability.
+- Agentverse-compatible Chat Protocol entrypoint for ASI:One discovery.
+- Demo utilities for resetting state, seeding calendar conflicts, clearing
+  Hatch calendar events, and adjusting nest warmth.
+
+## Architecture
+
+```text
+React phone UI
+  ├─ polls /api/state every ~1s
+  ├─ sends chat messages and approvals
+  └─ drives demo controls
+
+FastAPI backend (server.py)
+  ├─ owns shared in-memory GroupState
+  ├─ exposes chat, proposal, booking, and demo endpoints
+  └─ dispatches orchestration through orchestrator.py
+
+LangGraph workflows
+  ├─ proposal: availability -> event_select -> proposal
+  ├─ reactive: trigger -> event_synth -> format
+  ├─ ranking: rank
+  └─ booking: eligibility -> write_calendars
+
+Integrations
+  ├─ ASI:One for friend-voice proposal headlines and reactive event discovery
+  ├─ Google Calendar for free/busy checks, fixture seeding, cleanup, and writes
+  └─ Fetch.ai uAgents + Chat Protocol for Agentverse / ASI:One access
+```
+
+By default, the live demo uses the local LangGraph path for speed and
+reliability. Set `USE_REMOTE_AGENTS=1` to route proposal and booking requests
+through Agentverse-hosted agents via Chat Protocol, with a local fallback if the
+remote path fails.
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Backend | Python, FastAPI, Pydantic |
+| Orchestration | LangGraph |
+| Agents | Fetch.ai `uagents`, Chat Protocol |
+| LLM | ASI:One through an OpenAI-compatible client |
+| Calendar | Google Calendar API + OAuth token files |
+| Frontend | Vite, React, TypeScript, Tailwind CSS, Framer Motion |
+| Storage | JSON files and in-memory process state |
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- Google OAuth credentials if you want real calendar reads/writes
+- ASI:One API key if you want LLM-generated headlines and reactive discovery
+
+### Environment
+
+Create `.env` in the repository root:
 
 ```bash
-# 1. secrets — create a .env in the repo root with:
-#    ASI_API_KEY=...
-#    AGENTVERSE_API_KEY=...        # only needed for USE_REMOTE_AGENTS=1
-#    AGENT_SEED_PHRASE=...
-#    GOOGLE_CLIENT_ID=...
-#    GOOGLE_CLIENT_SECRET=...
-#    ANTHROPIC_API_KEY=...         # optional fallback
-#    USE_REMOTE_AGENTS=0           # 0 = local pipeline, 1 = Agentverse agents
+ASI_API_KEY=...
+AGENTVERSE_API_KEY=...
+AGENT_SEED_PHRASE=...
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
 
-# 2. backend
-python -m venv .venv && source .venv/bin/activate
+# Optional
+USE_REMOTE_AGENTS=0
+USE_LANGGRAPH=1
+ALLOW_MOCK_CALENDAR=1
+SERVER_PORT=8005
+```
+
+Important runtime flags:
+
+- `USE_REMOTE_AGENTS=0` keeps proposal and booking on the local LangGraph path.
+- `USE_REMOTE_AGENTS=1` tries Agentverse agents first and falls back locally.
+- `USE_LANGGRAPH=1` is the current default orchestration path.
+- `ALLOW_MOCK_CALENDAR=1` allows proposal generation when calendar OAuth tokens
+  are missing.
+- `SERVER_PORT` defaults to `8005`; the Vite proxy reads this value from the
+  root `.env`.
+
+### Backend
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-python server.py                              # FastAPI on :8000
+python server.py
+```
 
-# 3. frontend (new terminal)
-cd web && npm install && npm run dev          # Vite on :5173
+The API runs on `http://127.0.0.1:8005` by default.
 
-# 4. (per teammate) Google Calendar OAuth — drops a token at data/tokens/<id>.json
+### Frontend
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The frontend calls backend routes through the
+Vite `/api` proxy.
+
+### Google Calendar OAuth
+
+Authorize each demo user once. Tokens are stored under `data/tokens/` and are
+ignored by git.
+
+```bash
 python -m lib.integrations.google_calendar authorize daniel
 python -m lib.integrations.google_calendar authorize jono
 python -m lib.integrations.google_calendar authorize andrew
 ```
 
-Open http://localhost:5173 → pick the **LA Friends** chat → tap the demo panel's
-**Trigger silence** (or type a message that hints at an activity) → the agent's
-pinned proposal eases in at the top. Tap **Approve** as each user — when all
-approve, booking fires and writes the event to every Google Calendar.
+User IDs and token paths are configured in `data/users.json`.
 
-## How it runs end-to-end
+## Demo Flow
 
+1. Start the backend and frontend.
+2. Open the phone-frame UI at `http://localhost:5173`.
+3. Use the dev console to reset chat state or adjust nest warmth.
+4. Drop the nest warmth to `3` or below, or call `POST /propose`, to trigger the
+   proactive agent.
+5. The agent pins a proposal from the top-ranked idea.
+6. Tap approval as each group member.
+7. After everyone approves, the booking workflow writes calendar events where
+   tokens exist, mock-confirms missing-token users, posts a celebration message,
+   and restores the nest to full warmth.
+
+Reactive mode is also available: send an activity-like message such as
+`anyone down for the Lakers game next week?` and Hatch renders AI-synthesized
+options under the message.
+
+## API Reference
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/health` | Health check and remote-agent flag. |
+| `GET` | `/state` | Shared chat snapshot for the phone UI. |
+| `POST` | `/reset` | Reset in-memory demo state. |
+| `POST` | `/send_message` | Add a user message and optionally run reactive synthesis. |
+| `POST` | `/react` | Manually run the reactive pipeline for a query. |
+| `POST` | `/propose` | Run the proactive proposal workflow. |
+| `POST` | `/approve` | Mark one user as approved; schedules booking after all approve. |
+| `POST` | `/dismiss_proposal` | Skip the active proposal. |
+| `POST` | `/set_warmth` | Set nest warmth and optionally auto-propose when cold. |
+| `POST` | `/swap_alternate` | Swap the active proposal to the next alternate. |
+| `POST` | `/propose_idea` | Promote an idea-panel item into the pinned proposal. |
+| `POST` | `/dismiss_idea` | Globally remove an idea from the panel. |
+| `POST` | `/hide_idea` | Hide an idea for one user and lower its ranking. |
+| `POST` | `/cleanup` | Delete `Hatch · ...` calendar events for all configured users. |
+| `GET` | `/calendar_demo/status` | Check seeded calendar fixture status. |
+| `POST` | `/calendar_demo/seed` | Seed demo busy blocks into calendars. |
+| `POST` | `/calendar_demo/delete` | Remove demo busy blocks. |
+| `GET` | `/users` | Return `data/users.json`. |
+| `GET` | `/events` | Return `data/events.json`. |
+
+State is intentionally in-memory. Restarting `server.py` gives the prototype a
+clean process, and `POST /reset` restores the seeded demo chat.
+
+## Agentverse / Chat Protocol
+
+The Agentverse-compatible entrypoint lives in `agents/agentverse/main.py`. It
+speaks Fetch.ai Chat Protocol and proxies natural-language intents into the
+same FastAPI backend used by the phone UI.
+
+Run it locally from the repository root:
+
+```bash
+python server.py
+HATCH_UAGENT_PORT=8001 python -m agents.agentverse.main
 ```
-phone UI ──poll /state──▶  server.py  ──▶  orchestrator.propose_plan()
-   │                          │                  │
-   │                          │                  ├─ LOCAL  : lib.matching + lib.integrations
-   │                          │                  └─ REMOTE : Agentverse agents via Chat Protocol
-   │                          │
-   ├──/send_message──▶  group_state ──▶  event_synthesis.find_reactive_matches
-   │                                       (foldable AI reply under the message)
-   │
-   └──/approve (×N) ──▶  all_approved? ──▶  orchestrator.book_plan()
-                                              ├─ writes 4 Google Calendars
-                                              └─ restores nest warmth, posts confirmation
-```
 
-Toggle local vs. remote with `USE_REMOTE_AGENTS=1`. Demo rule: live tap-through
-runs LOCAL (fast, no flakes); record a separate clip showing REMOTE for the
-Agentverse prize narrative.
+Useful environment variables:
 
-## Repo map
+- `HATCH_API_BASE_URL=http://127.0.0.1:8005` if the API is not on the default.
+- `HATCH_PROXY_USER_ID=daniel` to choose which user ASI:One proxy messages use.
 
-```
-agents/                       uAgents entrypoints (Chat Protocol)
-  ├── proposer_agent.py         composes the in-chat suggestion via ASI:One
-  ├── calendar_agent.py         freebusy → overlap windows
-  ├── event_agent.py            ranks curated events against interests
-  ├── booking_agent.py          calendar writes + confirmation
-  └── agentverse/main.py        single deployable hosted-agent entrypoint
+Supported ASI:One-style intents include:
+
+- "hatch a plan" or "find us something to do" -> proactive proposal.
+- "any ideas for hiking?" -> reactive event discovery.
+- "propose the first option" -> promote the latest reactive option.
+- "book it" or "lock it in" -> approve/book the current proposal.
+
+See `agents/agentverse/README.md` for the Agentverse listing copy and examples.
+
+## Repository Structure
+
+```text
+agents/
+  agentverse/                 Chat Protocol uAgent entrypoint and intent parser
+  graph/                      LangGraph state, workflows, and nodes
+  calendar_agent.py           Calendar role for remote-agent path
+  event_agent.py              Event-ranking role for remote-agent path
+  proposer_agent.py           Friend-voice proposer role
+  booking_agent.py            Calendar booking role
 
 lib/
-  ├── matching.py               find_overlap, rank_events (pure)
-  ├── event_synthesis.py        reactive: message → matched events
-  ├── group_state.py            singleton in-memory chat store (messages,
-  │                             proposal lifecycle, approvals, ideas, nest warmth)
-  ├── protocol.py               Pydantic models exchanged between agents
-  └── integrations/             swap-in surface for every external service
-      ├── asi_one.py              Fetch.ai ASI:One LLM (OpenAI-compatible)
-      ├── google_calendar.py      OAuth + freebusy + insert + cleanup
-      ├── agentverse.py           agent-address registry
-      └── agent_client.py         Chat Protocol client used by orchestrator
-
-services/                     legacy / scratch wrappers — kept for reference
-  ├── google_calender.py        (note: spelling)
-  └── openai_client.py
-
-scripts/
-  ├── cleanup_calendars.py      bulk-delete every "Hatch · …" event
-  └── print_addresses.py        dump registered agent addresses
+  group_state.py              Shared in-memory chat, proposal, ideas, and nest state
+  matching.py                 JSON loading, overlap windows, and event ranking
+  protocol.py                 Pydantic request/response models for agents
+  integrations/
+    agent_client.py           Chat Protocol client for remote agents
+    agentverse.py             Agent address registry
+    asi_one.py                ASI:One client wrapper
+    google_calendar.py        OAuth, free/busy, insert, cleanup, and fixtures
 
 data/
-  ├── users.json                hardcoded users + interest tags
-  ├── events.json               curated LA events
-  └── tokens/                   Google OAuth tokens (gitignored)
+  users.json                  Demo group members, colors, interests, token paths
+  events.json                 Curated LA event corpus
+  tokens/                     Local Google OAuth tokens, ignored by git
 
-server.py                     FastAPI bridge — see endpoints below
-orchestrator.py               Calendar → Event → Proposer → (tap) → Booking
-                              with LOCAL / REMOTE dispatch
-web/                          Vite + React + Tailwind + Framer Motion
-                              phone-frame UI (light mode, ~390px wide)
+web/
+  src/                        React phone-frame UI and demo console
+  vite.config.ts              Dev server and /api proxy
+
+server.py                     FastAPI app
+orchestrator.py               Local/remote dispatch and reactive helpers
+requirements.txt              Python dependencies
 ```
 
-## Server endpoints
+## Scripts
 
-| Method | Path                | Purpose                                                    |
-|--------|---------------------|------------------------------------------------------------|
-| GET    | `/health`           | basic ping; reports `use_remote_agents` flag               |
-| GET    | `/state`            | full snapshot — messages, proposal, ideas, nest, users     |
-| POST   | `/reset`            | wipe state back to seed (demo reset)                       |
-| POST   | `/send_message`     | append a user message; auto-runs reactive matcher          |
-| POST   | `/react`            | manually trigger reactive synthesis on a query             |
-| POST   | `/propose`          | run the orchestrator and stash a proposal in state         |
-| POST   | `/approve`          | one user approves; when all approve, booking fires         |
-| POST   | `/dismiss_proposal` | skip the active proposal                                   |
-| POST   | `/swap_alternate`   | rotate to the next ranked event                            |
-| POST   | `/propose_idea`     | promote an entry from the ideas panel into a proposal      |
-| POST   | `/dismiss_idea`     | hide an idea from the side panel                           |
-| POST   | `/cleanup`          | bulk-delete `Hatch · *` events from all 4 calendars        |
-| GET    | `/users`            | dump `data/users.json`                                     |
-| GET    | `/events`           | dump `data/events.json`                                    |
+```bash
+python scripts/print_addresses.py
+python scripts/chat_ping.py
+python scripts/cleanup_calendars.py
+```
 
-The phone polls `/state` every ~1s; mutations happen via the dedicated POSTs.
-Restart `server.py` = clean slate (state is in-memory).
+Calendar cleanup is also available through `POST /cleanup` and the frontend dev
+console.
 
-## Where to plug things in
+## Prototype Notes
 
-- **New external service?** Add a module under `lib/integrations/`. Don't import
-  it from agents directly — go through orchestrator so agents stay vendor-neutral.
-- **New Fetch.ai agent?** Add a stub in `agents/`, register it in
-  `lib/integrations/agentverse.py`, and consume via `agent_client` from the
-  orchestrator's REMOTE path.
-- **New ranking signal?** Extend `lib/matching.rank_events` (LOCAL) and the
-  `event_agent` (REMOTE) — they should stay symmetric.
-- **Google Calendar tokens** live at `data/tokens/<user_id>.json`. The path is
-  declared in `data/users.json::google_token_path`.
-
-## Track owners (hour 0–4 reference, kept for posterity)
-
-- **A — Proposer agent on Agentverse:** [agents/proposer_agent.py](agents/proposer_agent.py)
-  + [agents/agentverse/main.py](agents/agentverse/main.py). Follow the
-  [Render deploy guide](https://innovationlab.fetch.ai/resources/docs/agentverse/deploy-agent-on-agentverse-via-render).
-- **B — Google Calendar OAuth:** [lib/integrations/google_calendar.py](lib/integrations/google_calendar.py).
-- **C — Web UI:** [web/](web/). Phone frame is live.
-- **D — Content:** [data/events.json](data/events.json) +
-  [data/users.json](data/users.json).
-
-## Golden rule
-
-If a teammate says "just for the demo, can we…" — the answer is no.
-The demo script in [CLAUDE.md](CLAUDE.md) §6 is the contract.
+- No database is used; persistent data lives in `data/*.json`.
+- Calendar tokens are local files and should never be committed.
+- Booking is explicit: the system only writes calendars after group approval.
+- Missing calendar tokens are mocked during booking so the filmed demo remains
+  smooth, while real token/API failures are surfaced in the booking result.
+- The frontend is intentionally a web app inside a phone-shaped frame, not a
+  native mobile app.
+- Voice, payment checkout, real ticket purchase, scraping, auth, and cross-group
+  memory are outside the finalized prototype.
