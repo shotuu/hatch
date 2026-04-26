@@ -43,7 +43,7 @@ export default function PhoneApp({ viewer, actions }: Props) {
             key="chat"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: "100%" }}
+            exit={{ x: "100%", pointerEvents: "none" }}
             transition={{ type: "spring", stiffness: 320, damping: 34 }}
             className="absolute inset-0 bg-cream-50"
           >

@@ -1,18 +1,29 @@
 import type { GroupSnapshot } from "./types";
 
 const BASE = "/api";
+const DEFAULT_TIMEOUT_MS = 12000;
+
+async function fetchJson(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(`${BASE}${path}`, { ...init, signal: controller.signal });
+    return r.json();
+  } finally {
+    window.clearTimeout(id);
+  }
+}
 
 async function jpost(path: string, body?: unknown) {
-  const r = await fetch(`${BASE}${path}`, {
+  return fetchJson(path, {
     method: "POST",
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  return r.json();
 }
 
 export const api = {
-  state: async (): Promise<GroupSnapshot> => (await fetch(`${BASE}/state`)).json(),
+  state: async (): Promise<GroupSnapshot> => fetchJson("/state", undefined, 5000),
 
   sendMessage: (user_id: string, text: string) =>
     jpost("/send_message", { user_id, text }),
@@ -29,8 +40,16 @@ export const api = {
     jpost("/propose_idea", { event_id, user_id }),
 
   reset: () => jpost("/reset"),
+  forceReset: () => {
+    const url = `${BASE}/reset`;
+    if (navigator.sendBeacon) {
+      const body = new Blob([], { type: "application/json" });
+      if (navigator.sendBeacon(url, body)) return;
+    }
+    fetch(url, { method: "POST", keepalive: true }).catch(() => {});
+  },
   wipe: () => jpost("/cleanup"),
-  calendarDemoStatus: async () => (await fetch(`${BASE}/calendar_demo/status`)).json(),
+  calendarDemoStatus: async () => fetchJson("/calendar_demo/status", undefined, 5000),
   seedCalendarDemo: () => jpost("/calendar_demo/seed"),
   deleteCalendarDemo: () => jpost("/calendar_demo/delete"),
 

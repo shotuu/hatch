@@ -11,6 +11,7 @@ separate clip showing REMOTE for the prize narrative.
 """
 from __future__ import annotations
 
+import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -340,7 +341,7 @@ async def propose_plan() -> dict:
         except Exception as e:
             # Demo safety: if remote misbehaves mid-pitch, fall back to local.
             print(f"[orchestrator] remote propose failed, falling back: {e}")
-    return propose_plan_local()
+    return await asyncio.to_thread(propose_plan_local)
 
 
 async def book_plan(event_id: str) -> dict:
@@ -349,7 +350,7 @@ async def book_plan(event_id: str) -> dict:
             return await book_plan_remote(event_id)
         except Exception as e:
             print(f"[orchestrator] remote book failed, falling back: {e}")
-    return book_plan_local(event_id)
+    return await asyncio.to_thread(book_plan_local, event_id)
 
 
 # ──────────────────────── Reactive (per-message) ────────────────────────

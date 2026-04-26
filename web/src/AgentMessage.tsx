@@ -59,7 +59,12 @@ export default function AgentMessage({
       layout
       initial={{ opacity: 0, y: -10, scale: 0.94 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.96 }}
+      exit={{
+        opacity: 0,
+        scale: 0.96,
+        pointerEvents: "none",
+        transition: { duration: 0.18, ease: "easeOut" },
+      }}
       transition={{ type: "spring", stiffness: 320, damping: 26, mass: 0.9 }}
       className="mx-3 my-3 rounded-[22px] bg-gradient-to-br from-coral-50 via-cream-50 to-[#FFF1BF] ring-1 ring-coral-200/70 p-3.5 shadow-warm relative overflow-hidden"
     >

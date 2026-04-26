@@ -63,7 +63,7 @@ export default function IdeasPanel({
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, pointerEvents: "none" }}
             onClick={onClose}
             className="absolute inset-0 bg-ink/30 z-40"
           />
@@ -71,7 +71,7 @@ export default function IdeasPanel({
           <motion.aside
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: "100%" }}
+            exit={{ x: "100%", pointerEvents: "none" }}
             transition={{ type: "spring", stiffness: 360, damping: 38 }}
             className="absolute top-0 right-0 bottom-0 w-[85%] bg-cream-50 z-50 shadow-warmlg flex flex-col"
           >

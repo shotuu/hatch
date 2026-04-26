@@ -72,6 +72,8 @@ export function useGroupState() {
   const [resolvedReactives, setResolvedReactives] = useState<Set<string>>(new Set());
   const stopRef = useRef(false);
   const seenBookedRef = useRef<Set<string>>(new Set());
+  const resetEpochRef = useRef(0);
+  const resetInFlightRef = useRef(false);
 
   // Polling loop
   useEffect(() => {
@@ -81,7 +83,7 @@ export function useGroupState() {
       if (stopRef.current) return;
       try {
         const s = normalizeSnapshot(await api.state());
-        setSnapshot(s);
+        if (!resetInFlightRef.current) setSnapshot(s);
       } catch {
         // ignore — server might be restarting
       }
@@ -142,21 +144,51 @@ export function useGroupState() {
   // ─── action wrappers ───
   const wrap = useCallback(<T extends any[]>(fn: (...a: T) => Promise<any>) => {
     return async (...args: T) => {
+      const epoch = resetEpochRef.current;
       setBusy(true);
       try {
         await fn(...args);
         // bump immediately for snappier UI
         const s = normalizeSnapshot(await api.state());
-        setSnapshot(s);
+        if (resetEpochRef.current === epoch) setSnapshot(s);
+      } catch {
+        // Demo resilience: a timed-out request should not leave controls inert.
       } finally {
-        setBusy(false);
+        if (resetEpochRef.current === epoch) setBusy(false);
       }
     };
   }, []);
 
   const send = wrap((userId: string, text: string) => api.sendMessage(userId, text));
   const triggerProactive = wrap(() => api.propose());
-  const approve = wrap((userId: string) => api.approve(userId));
+  // Custom (not via `wrap`) so we can flip the viewer's approval flag
+  // optimistically — the avatar turns on the instant they tap, instead
+  // of waiting for the round-trip + state refresh. The poll reconciles
+  // any drift within ~1s.
+  const approve = useCallback(async (userId: string) => {
+    const epoch = resetEpochRef.current;
+    setBusy(true);
+    setSnapshot((prev) => {
+      const p = prev.current_proposal;
+      if (!p || !(userId in p.approvals) || p.approvals[userId]) return prev;
+      return {
+        ...prev,
+        current_proposal: {
+          ...p,
+          approvals: { ...p.approvals, [userId]: true },
+        },
+      };
+    });
+    try {
+      await api.approve(userId);
+      const s = normalizeSnapshot(await api.state());
+      if (resetEpochRef.current === epoch) setSnapshot(s);
+    } catch {
+      // Keep the optimistic approval and let polling reconcile.
+    } finally {
+      if (resetEpochRef.current === epoch) setBusy(false);
+    }
+  }, []);
   const dismissProposal = wrap(async () => {
     const evtId = snapshot.current_proposal?.event.id;
     await api.dismissProposal();
@@ -224,15 +256,44 @@ export function useGroupState() {
     await api.dismissProposal();
     if (evtId) await api.dismissIdea(evtId).catch(() => {});
   });
-  const reset = wrap(async () => {
-    await api.reset();
+  const clearLocalDemoState = () => {
     seenBookedRef.current = new Set();
     setPlannedEvents([]);
     setCelebrations([]);
     setReactiveSkips({});
     setRejectedEventIds(new Set());
     setResolvedReactives(new Set());
-  });
+  };
+
+  const reset = () => {
+    resetEpochRef.current += 1;
+    clearLocalDemoState();
+    setSnapshot((prev) => ({
+      ...prev,
+      messages: [],
+      current_proposal: null,
+      nest_warmth: 30,
+      last_booking: null,
+      ideas: [],
+      hatch_typing: false,
+    }));
+    setBusy(false);
+    resetInFlightRef.current = true;
+
+    const epoch = resetEpochRef.current;
+    api.forceReset();
+    window.setTimeout(() => {
+      api
+        .state()
+        .then((raw) => {
+          resetInFlightRef.current = false;
+          if (resetEpochRef.current === epoch) setSnapshot(normalizeSnapshot(raw));
+        })
+        .catch(() => {
+          resetInFlightRef.current = false;
+        });
+    }, 350);
+  };
   const setWarmth = wrap((days: number) => {
     // Guard against NaN / undefined (e.g. before first /state poll resolves) —
     // those serialize to null and the backend rejects with 422.

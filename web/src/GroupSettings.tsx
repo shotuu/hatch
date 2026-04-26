@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { User } from "./types";
 
 type Props = {
@@ -17,14 +17,14 @@ export default function GroupSettings({ open, tripName, members, onClose }: Prop
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, pointerEvents: "none" }}
             onClick={onClose}
             className="absolute inset-0 bg-ink/30 z-40"
           />
           <motion.aside
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: "100%" }}
+            exit={{ x: "100%", pointerEvents: "none" }}
             transition={{ type: "spring", stiffness: 360, damping: 38 }}
             className="absolute inset-0 bg-cream-50 z-50 shadow-warmlg flex flex-col"
           >
@@ -112,6 +112,13 @@ function QuickAction({ icon, label }: { icon: ReactNode; label: string }) {
 function LocationRow() {
   const [location, setLocation] = useState("Los Angeles, CA");
   const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const finishEditing = () => {
+    inputRef.current?.blur();
+    setEditing(false);
+  };
+
   return (
     <div className="px-3.5 py-3 flex items-center gap-3">
       <span className="w-8 h-8 rounded-xl flex items-center justify-center ring-1 bg-coral-50 text-coral-600 ring-coral-200/70 shrink-0">
@@ -121,13 +128,14 @@ function LocationRow() {
         <div className="text-[13.5px] font-medium text-ink leading-tight">Location</div>
         {editing ? (
           <input
+            ref={inputRef}
             autoFocus
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             onBlur={() => setEditing(false)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === "Escape") {
-                (e.target as HTMLInputElement).blur();
+                finishEditing();
               }
             }}
             placeholder="Where should plans happen?"
@@ -143,7 +151,16 @@ function LocationRow() {
         )}
       </div>
       <button
-        onClick={() => setEditing((v) => !v)}
+        onMouseDown={(e) => {
+          if (editing) e.preventDefault();
+        }}
+        onClick={() => {
+          if (editing) {
+            finishEditing();
+          } else {
+            setEditing(true);
+          }
+        }}
         className="text-[11px] font-medium text-coral-600 px-2 py-1 rounded-md hover:bg-coral-50"
       >
         {editing ? "Done" : "Edit"}

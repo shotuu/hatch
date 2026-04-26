@@ -33,8 +33,14 @@ export default function DemoPanel({ actions }: Props) {
 
   const [autoDecay, setAutoDecay] = useState(false);
   const [decayRateMs, setDecayRateMs] = useState(2000);
+  const resetButtonRef = useRef<HTMLButtonElement>(null);
   const warmthRef = useRef(warmth);
   warmthRef.current = warmth;
+
+  const resetChat = () => {
+    setAutoDecay(false);
+    reset();
+  };
 
   useEffect(() => {
     if (!autoDecay) return;
@@ -48,6 +54,25 @@ export default function DemoPanel({ actions }: Props) {
     }, decayRateMs);
     return () => clearInterval(id);
   }, [autoDecay, decayRateMs, setWarmth]);
+
+  useEffect(() => {
+    const button = resetButtonRef.current;
+    if (!button) return;
+    const fire = (e: PointerEvent | MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      resetChat();
+    };
+    button.addEventListener("pointerdown", fire, { capture: true });
+    button.addEventListener("mousedown", fire, { capture: true });
+    button.addEventListener("touchstart", fire, { capture: true });
+    return () => {
+      button.removeEventListener("pointerdown", fire, { capture: true });
+      button.removeEventListener("mousedown", fire, { capture: true });
+      button.removeEventListener("touchstart", fire, { capture: true });
+    };
+  }, [reset]);
+
   return (
     <aside className="w-[260px] max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar shrink-0 rounded-3xl bg-cream-50 ring-1 ring-ink-faint/40 shadow-warmlg p-5 flex flex-col gap-5 self-start mt-12 xl:sticky xl:top-10">
       <header className="flex items-center justify-between">
@@ -80,20 +105,19 @@ export default function DemoPanel({ actions }: Props) {
             min={0}
             max={NEST_MAX}
             value={warmth}
-            disabled={busy}
             onChange={(e) => setWarmth(Number(e.target.value))}
             aria-label="Nest warmth"
             className="w-full accent-coral-500"
           />
 
           <div className="flex gap-1.5">
-            <StepBtn onClick={() => setWarmth(Math.max(0, warmth - 1))} busy={busy}>
+            <StepBtn onClick={() => setWarmth(Math.max(0, warmth - 1))} busy={false}>
               −1 day
             </StepBtn>
-            <StepBtn onClick={() => setWarmth(Math.max(0, warmth - 5))} busy={busy}>
+            <StepBtn onClick={() => setWarmth(Math.max(0, warmth - 5))} busy={false}>
               −5 days
             </StepBtn>
-            <StepBtn onClick={() => setWarmth(NEST_MAX)} busy={busy}>
+            <StepBtn onClick={() => setWarmth(NEST_MAX)} busy={false}>
               Restore
             </StepBtn>
           </div>
@@ -126,9 +150,33 @@ export default function DemoPanel({ actions }: Props) {
       </Section>
 
       <Section title="Chat state">
-        <GhostBtn onClick={() => reset()} busy={busy}>
+        <button
+          ref={resetButtonRef}
+          type="button"
+          aria-label="Force reset chat"
+          onMouseDownCapture={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            resetChat();
+          }}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            resetChat();
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            resetChat();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className={`${baseBtn} bg-white ring-2 ring-coral-300 text-coral-700 hover:bg-coral-50 active:scale-[0.98] pointer-events-auto relative z-50`}
+        >
           Reset chat
-        </GhostBtn>
+        </button>
       </Section>
 
       <Section title="Calendars">
